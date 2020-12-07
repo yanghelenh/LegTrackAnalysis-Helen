@@ -79,8 +79,8 @@ function [srnLegX, srnLegY] = shiftRotateNormalizeLegPos(legX, legY, ...
     bodyLineShiftCoeffs = zeros(size(legXShift,1),2);
 
     for i = 1:size(legXShift, 1)
-        xPts = legXShift(i, lineFitInd);
-        yPts = legYShift(i, lineFitInd);
+        xPts = legXShift(i, refPts.lineFitInd);
+        yPts = legYShift(i, refPts.lineFitInd);
 
         bodyLineShiftCoeffs(i,:) = polyfit(xPts, yPts, 1);
     end

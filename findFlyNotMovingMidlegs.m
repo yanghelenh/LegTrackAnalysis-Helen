@@ -7,13 +7,8 @@
 % Returns indicies of not moving times
 %
 % INPUTS:
-%   srnLegX - matrix of leg X coordinates after smoothing, rotating, and
-%       normalization (output of shiftRotateNormalizeLegPos)
-%   srnLegY - matrix of leg Y coordinates after smoothing, rotating, and
-%       normalization (output of shiftRotateNormalizeLegPos)
+%   legVel - matrix of leg velocities
 %   notMoveParams - struct of parameters
-%       padLen - pad length, for Gaussian process smoothing of leg position
-%       sigma - sigma for Gaussian process smoothing of leg position
 %       medFiltNumSamps - number of samples for median filtering leg
 %           velocity
 %       zeroVelThreshMed - zero velocity threshold (on speed, actually),
@@ -33,42 +28,24 @@
 %
 % UPDATED:
 %   11/16/20 - HHY
+%   11/18/20 - HHY - change inputs from position to velocity
 %
-function zeroVelInd = findFlyNotMovingMidlegs(srnLegX, srnLegY, ...
-    notMoveParams)
-
-    % preallocate
-    srnLegXSmo = zeros(size(srnLegX));
-
-    % loop through all tracked points
-    for i = 1:size(srnLegXSmo,2)
-        smoPosPy = py.proc_utils.safe_interp_conv_smooth_ball_data(...
-            srnLegX(:,i)', notMoveParams.padLen, notMoveParams.sigma);
-        % convert from python to matlab data format
-        smoPos = cell2mat(cell(smoPosPy.tolist()));
-        srnLegXSmo(:,i) = smoPos';
-    end
-
-    % get leg x velocities by taking gradient
-    legXVel = zeros(size(srnLegXSmo));
-    for i = 1:size(legXVel,2)
-        legXVel(:,i) = gradient(srnLegXSmo(:,i));
-    end
+function zeroVelInd = findFlyNotMovingMidlegs(legVel, notMoveParams)
 
     % median filter leg velocities, mid legs
-    medFiltR2 = medfilt1(legXVel(:,notMoveParams.r2LegInd),...
+    medFiltR2 = medfilt1(legVel(:,notMoveParams.r2LegInd),...
         notMoveParams.medFiltNumSamps);
-    medFiltL2 = medfilt1(legXVel(:,notMoveParams.l2LegInd),...
+    medFiltL2 = medfilt1(legVel(:,notMoveParams.l2LegInd),...
         notMoveParams.medFiltNumSamps);
 
     % not moving as speed less than threshold
     r2ZeroVelInd = find((abs(medFiltR2) < ...
         notMoveParams.zeroVelThreshMed) & ...
-        (abs(legXVel(:,notMoveParams.r2LegInd)) < ...
+        (abs(legVel(:,notMoveParams.r2LegInd)) < ...
         notMoveParams.zeroVelThresh));
 
     % find inverse of R2 zeroVelInd -> moving index
-    allInd = (1:length(legXVel(:,notMoveParams.r2LegInd)))';
+    allInd = (1:length(legVel(:,notMoveParams.r2LegInd)))';
     r2MoveInd = setdiff(allInd, r2ZeroVelInd); 
 
     % find moving bouts
@@ -77,7 +54,7 @@ function zeroVelInd = findFlyNotMovingMidlegs(srnLegX, srnLegY, ...
     % loop through all moving bouts
     for i = 1:length(r2MoveBoutStarts)
         boutInd = (r2MoveBoutStarts(i):r2MoveBoutEnds(i))';
-        boutVels = legXVel(boutInd,2);
+        boutVels = legVel(boutInd,2);
         % if movement bout doesn't exceed threshold, append to zeroVelInd
         if ~(sum(boutVels >= notMoveParams.movePosVelThresh) || ...
                 sum(boutVels <= notMoveParams.moveNegVelThresh))
@@ -91,7 +68,8 @@ function zeroVelInd = findFlyNotMovingMidlegs(srnLegX, srnLegY, ...
     % same for left mid leg
     l2ZeroVelInd = find((abs(medFiltL2) < ...
         notMoveParams.zeroVelThreshMed) & ...
-        (abs(legXVel(:,notMoveParams.l2LegInd)) < zeroVelThresh));
+        (abs(legVel(:,notMoveParams.l2LegInd)) < ...
+        notMoveParams.zeroVelThresh));
 
     l2MoveInd = setdiff(allInd, l2ZeroVelInd);
 
@@ -99,7 +77,7 @@ function zeroVelInd = findFlyNotMovingMidlegs(srnLegX, srnLegY, ...
 
     for i = 1:length(l2MoveBoutStarts)
         boutInd = (l2MoveBoutStarts(i):l2MoveBoutEnds(i))';
-        boutVels = legXVel(boutInd,notMoveParams.l2LegInd);
+        boutVels = legVel(boutInd,notMoveParams.l2LegInd);
         % if movement bout doesn't exceed threshold, append to zeroVelInd
         if ~(sum(boutVels >= notMoveParams.movePosVelThresh) || ...
                 sum(boutVels <= notMoveParams.moveNegVelThresh))

@@ -51,14 +51,14 @@ function zeroXing = findVelZeroXing(vel, zeroVelInd, zeroXingParams)
         boutInd = (moveBoutStarts(i):moveBoutEnds(i))';
 
         % loop through all legs
-        for j = 1:length(zeroXingParamslegInd)
+        for j = 1:length(zeroXingParams.legInd)
             % find indicies of all positive velocities
             posInd = find(...
-                legXVel(boutInd,zeroXingParamslegInd(j)) >= 0) + boutInd(1);
+                vel(boutInd,zeroXingParams.legInd(j)) >= 0) + boutInd(1);
 
             % find indicies of negative velocities
             negInd = find(...
-                legXVel(boutInd,zeroXingParams.legInd(j)) < 0) + boutInd(1);
+                vel(boutInd,zeroXingParams.legInd(j)) < 0) + boutInd(1);
 
             % moving bout must have positive and negative velocities to 
             %  count
