@@ -1,0 +1,1 @@
+ffmpeg -i fly02_cell01_trial06_legVid.mp4 -vf "scale=-1:416, crop=416:416" -pix_fmt yuv420p -b:v 17000k -c:v h264_videotoolbox -allow_sw 1 fly02_cell01_trial06_legVid_resized.mp4

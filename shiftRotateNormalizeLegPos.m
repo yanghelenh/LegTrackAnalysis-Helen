@@ -6,6 +6,9 @@
 %  midlegs) and normalized so the units are body lengths (instead of
 %  pixels).
 %
+% NOTE (4/15/21) - check where NaNs in bodyLen are coming from. Will crash
+% python code for smoothing
+%
 % INPUTS:
 %   legX - X coordinates of leg positions (frames x points), output from 
 %       loadTrkFile
