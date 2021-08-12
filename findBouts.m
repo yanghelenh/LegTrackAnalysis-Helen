@@ -27,6 +27,8 @@ function [boutStartInd, boutEndInd, boutDur] = findBouts(inBoutInd)
     boutIndChange = diff(inBoutInd); % difference between indicies
 
     % when difference greater than 1, start of new bout
+%     boutStartInd = inBoutInd(find(boutIndChange > 1) + 1);
+    
     boutStartInd = inBoutInd(find(boutIndChange > 1) + 1);
     % append first index for start of first bout
     boutStartInd = [inBoutInd(1); boutStartInd]; 

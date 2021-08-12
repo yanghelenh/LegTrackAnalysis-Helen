@@ -25,6 +25,11 @@
 %       movePosYVelThresh - threshold for movement, positive Y velocity
 %       moveNegYVelThresh - threshold for movement, negative Y velocity
 %       minBoutLen - minimum length of not-moving bout, in samples
+%       stepNegXVelThresh - threshold for step, negative X velocity
+%       maxTimeFromStep - maximum number of samples from step, for midpoint
+%           of not-moving bout
+%       adjBoutSep - if not-moving bouts are less than this many samples
+%           apart, merge them
 %       r2LegInd - index of right mid-leg
 %       l2LegInd - index of left mid-leg
 %
@@ -35,6 +40,8 @@
 %
 % UPDATED:
 %   12/7/20 - HHY
+%   8/11/21 - HHY - add criterion of looking for step within some number of
+%       frames from not-moving bout
 %
 function zeroVelInd = findFlyNotMovingMidlegsXY(xVel, yVel, notMoveParams)
 
@@ -120,11 +127,57 @@ function zeroVelInd = findFlyNotMovingMidlegsXY(xVel, yVel, notMoveParams)
     %  with midlegs)
     zeroVelInd = intersect(r2ZeroVelInd, l2ZeroVelInd);
 
+    
+    % get not-moving bouts, after all above criteria
+    
+    % merge neighboring bouts
+    [zeroVelBoutStarts, ~, zeroVelBoutEnds, ~] = mergeAdjVecVals(...
+        zeroVelInd, notMoveParams.adjBoutSep);
+    
+    % midpoints of not-moving bouts
+    zeroVelBoutMid = floor((zeroVelBoutStarts + zeroVelBoutEnds)/2);
+    
+    % get points when X velocity of legs exceeds step threshold (neg)
+    r2StepInd = find(xVel(:,notMoveParams.r2LegInd) < ...
+        notMoveParams.stepNegXVelThresh);
+    l2StepInd = find(xVel(:, notMoveParams.l2LegInd) < ...
+        notMoveParams.stepNegXVelThresh);
+    
+    % get union of these indicies
+    stepInd = union(r2StepInd, l2StepInd);
+    
+    % loop through all these bout midpoints, check if any are within 
+    %  maxTimeFromStep samples from step
+    for i = 1:length(zeroVelBoutMid)
+        % distance of this midpoint from all pts identified as part of step
+        allDist = abs(stepInd - zeroVelBoutMid(i));
+        
+        % first index of allDist that is within specified distance of step
+        closeInd = find(allDist < notMoveParams.maxTimeFromStep, 1);
+        
+        % if closeInd has any values (this midpoint is close to a step),
+        %  this bout should be removed from zeroVelInd
+        if ~isempty(closeInd)
+            startInd = zeroVelBoutStarts(i);
+            endInd = zeroVelBoutEnds(i);
+            
+            % set these values to NaN for later removal
+            zeroVelInd((zeroVelInd >= startInd)&(zeroVelInd <=endInd)) = ...
+                NaN;
+        end
+    end
+    % remove NaNs from zeroVelInd
+    zeroVelInd(isnan(zeroVelInd)) = [];
+    
+    % merge neighboring bouts
+    [zeroVelBoutStarts, ~, zeroVelBoutEnds, ~] = mergeAdjVecVals(...
+        zeroVelInd, notMoveParams.adjBoutSep);
+    % get bout duration
+    zeroVelBoutDur = zeroVelBoutEnds - zeroVelBoutStarts;
+    
+    
+    
     % each not moving bout must be of minimum length; if not, remove
-    % find start, end, and duration of zero velocity bouts
-    [zeroVelBoutStarts, zeroVelBoutEnds, zeroVelBoutDur] = ...
-        findBouts(zeroVelInd);
-
     % find bouts that are less than minimum long
     zeroVelShortBouts = find(zeroVelBoutDur < notMoveParams.minBoutLen);
 
