@@ -47,7 +47,7 @@ notMoveParams.minBoutLen = 10; % in samples
 notMoveParams.stepNegXVelThresh = - 0.035;
 notMoveParams.maxTimeFromStep = 100; % in samples
 % merge any not-moving bouts less than this many samples apart
-notMoveParams.adjBoutSep = 20;  
+notMoveParams.adjBoutSep = 50;  
 notMoveParams.r2LegInd = 2;
 notMoveParams.l2LegInd = 5;
 
@@ -80,6 +80,10 @@ load(pDataFilePath, 'ephysData', 'ephysSpikes', 'fictrac', ...
 
 % load .trk file; get leg positions
 [legX, legY] = loadTrkFile(trkFilePath);
+
+% some parameters about .trk file
+numFrames = size(legX, 1); % number of frames in this trial
+numPoints = size(legX, 2); % number of tracked points
 
 % get leg positions after alignment to fly midpoint and normalization 
 %  to body length units
@@ -427,18 +431,19 @@ minNotMovLog = ismember(minInds, zeroVelInd);
 minIndsMov = minInds(~minNotMovLog);
 minColsMov = minWinsColsEndInd(~minNotMovLog);
 
+%% plots for identifying leg reversals
 
 % plot
-maxIndsR1 = maxInds(maxWinsColsEndInd == 1);
-minIndsR1 = minInds(minWinsColsEndInd == 1);
-maxValsR1 = srnLegX(maxInds(maxWinsColsEndInd == 1),1);
-minValsR1 = srnLegX(minInds(minWinsColsEndInd == 1),1);
-
-figure;
-plot(srnLegX(:,1));
-hold on;
-plot(maxIndsR1,maxValsR1, 'x', 'LineStyle', 'none');
-plot(minIndsR1,minValsR1, 'o', 'LineStyle', 'none');
+% maxIndsR1 = maxInds(maxWinsColsEndInd == 1);
+% minIndsR1 = minInds(minWinsColsEndInd == 1);
+% maxValsR1 = srnLegX(maxInds(maxWinsColsEndInd == 1),1);
+% minValsR1 = srnLegX(minInds(minWinsColsEndInd == 1),1);
+% 
+% figure;
+% plot(srnLegX(:,1));
+% hold on;
+% plot(maxIndsR1,maxValsR1, 'x', 'LineStyle', 'none');
+% plot(minIndsR1,minValsR1, 'o', 'LineStyle', 'none');
 
 % % plot
 % maxIndsR2 = maxInds(maxWinsColsEndInd == 2);
@@ -503,6 +508,365 @@ plot(zeroVelInd, srnLegX(zeroVelInd,2), '.', 'LineStyle', 'none');
 % plot(maxIndsR1,maxValsR1, 'x', 'LineStyle', 'none');
 % plot(minIndsR1,minValsR1, 'o', 'LineStyle', 'none');
 
+%% Refine calls of leg reversals using 1st derivative of leg X position
+
+% threshold of what 1st derivative (vel) should exceed in the positive
+%  direction for a position maximum
+legRevParams.maxPosVelThresh = 0.0001; 
+legRevParams.maxNegVelThresh = -0.001; % in negative direction
+legRevParams.minPosVelThresh = 0.0001; % in pos dir, for leg position min
+legRevParams.minNegVelThresh = -0.001; % in neg dir, for leg position min
+% number of frames before and after max/min to check for velocity thresh
+legRevParams.numNegVelFrames = 8;
+legRevParams.numPosVelFrames = 12;
+
+% indicies (into maxIndsMov) of maxima to remove; initialize
+maxRmvInd = [];
+
+% loop through all maxima
+for i = 1:length(maxIndsMov)
+    % window before maximum
+    bfWinStart = maxIndsMov(i) - legRevParams.numPosVelFrames;
+    bfWinEnd = maxIndsMov(i) - 1; % index right before 
+    % window after maximum
+    afWinStart = maxIndsMov(i) + 1; % index right after
+    afWinEnd = maxIndsMov(i) + legRevParams.numNegVelFrames;
+    
+    % if maximum occurs at first or last frame of the trial, only use 1
+    %  window to check if maximum is valid
+    if (maxIndsMov(i) == 1) % max is first frame of trial
+        % only check that after window is valid
+        afAvgVel = mean(legXVel(afWinStart:afWinEnd,maxColsMov(i)));
+        % if invalid, save index
+        if (afAvgVel > legRevParams.maxNegVelThresh)
+            maxRmvInd = [maxRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    elseif (maxIndsMov(i) == numFrames) % max is last frame of trial
+        % only check that before window is valid
+        bfAvgVel = mean(legXVel(bfWinStart:bfWinEnd, maxColsMov(i)));
+        % if invalid, save index
+        if (bfAvgVel < legRevParams.maxPosVelThresh)
+            maxRmvInd = [maxRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    end
+    
+    % check that windows are valid (contained b/w 1 and number of frames)
+    %  if max is w/in numVelFrames of start or end of trial, shorten window
+    %  accordingly (but can't be length zero, b/c taken care of with check
+    %  on whether max is at start or end of trial
+    
+    % set before window to start with trial start
+    if (bfWinStart < 1) 
+        bfWinStart = 1;
+    end
+    % set after window to end with trial end
+    if (afWinEnd > numFrames)
+        afWinEnd = numFrames;
+    end
+    
+    % get average velocities within window
+    bfAvgVel = mean(legXVel(bfWinStart:bfWinEnd, maxColsMov(i)));
+    afAvgVel = mean(legXVel(afWinStart:afWinEnd,maxColsMov(i)));
+    
+    % check that 1st derivative meets threshold for both windows, if not,
+    %  add index to those to remove
+    if (afAvgVel > legRevParams.maxNegVelThresh) || ...
+            (bfAvgVel < legRevParams.maxPosVelThresh)
+        maxRmvInd = [maxRmvInd; i];
+    end
+end
+
+% remove all the indicies flagged for maxima
+maxIndsMovCorr = maxIndsMov;
+maxIndsMovCorr(maxRmvInd) = [];
+maxColsMovCorr = maxColsMov;
+maxColsMovCorr(maxRmvInd) = [];
+
+
+
+% for minima
+
+% initialize array of indicies to remove
+minRmvInd = [];
+
+% loop through all maxima
+for i = 1:length(minIndsMov)
+    % window before minimum
+    bfWinStart = minIndsMov(i) - legRevParams.numNegVelFrames;
+    bfWinEnd = minIndsMov(i) - 1; % index right before 
+    % window after minimum
+    afWinStart = minIndsMov(i) + 1; % index right after
+    afWinEnd = minIndsMov(i) + legRevParams.numPosVelFrames;
+    
+    % if minimum occurs at first or last frame of the trial, only use 1
+    %  window to check if minimum is valid
+    if (minIndsMov(i) == 1) % min is first frame of trial
+        % only check that after window is valid
+        afAvgVel = mean(legXVel(afWinStart:afWinEnd, minColsMov(i)));
+        % if invalid, save index
+        if (afAvgVel < legRevParams.minPosVelThresh)
+            minRmvInd = [minRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    elseif (minIndsMov(i) == numFrames) % min is last frame of trial
+        % only check that before window is valid
+        bfAvgVel = mean(legXVel(bfWinStart:bfWinEnd, minColsMov(i)));
+        % if invalid, save index
+        if (bfAvgVel > legRevParams.minNegVelThresh)
+            minRmvInd = [minRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    end
+    
+    % check that windows are valid (contained b/w 1 and number of frames)
+    %  if max is w/in numVelFrames of start or end of trial, shorten window
+    %  accordingly (but can't be length zero, b/c taken care of with check
+    %  on whether max is at start or end of trial
+    
+    % set before window to start with trial start
+    if (bfWinStart < 1) 
+        bfWinStart = 1;
+    end
+    % set after window to end with trial end
+    if (afWinEnd > numFrames)
+        afWinEnd = numFrames;
+    end
+    
+    % get average velocities within window
+    bfAvgVel = mean(legXVel(bfWinStart:bfWinEnd, minColsMov(i)));
+    afAvgVel = mean(legXVel(afWinStart:afWinEnd,minColsMov(i)));
+    
+    % check that 1st derivative meets threshold for both windows, if not,
+    %  add index to those to remove
+    if (afAvgVel < legRevParams.minPosVelThresh) || ...
+            (bfAvgVel > legRevParams.minNegVelThresh)
+        minRmvInd = [minRmvInd; i];
+    end
+end
+
+% remove all the indicies flagged for maxima
+minIndsMovCorr = minIndsMov;
+minIndsMovCorr(minRmvInd) = [];
+minColsMovCorr = minColsMov;
+minColsMovCorr(minRmvInd) = [];
+
+%% Refine calls of leg reversals using 1st derivative of leg X position v2
+% Instead of taking mean of velocity within window, find mean position,
+%  compute velocity as change in distance b/w this point and the max/min
+%  over time. Set threshold on this velocity
+% This should be less noisy...
+
+% threshold of what 1st derivative (vel) should exceed in the positive
+%  direction for a position maximum
+legRevParams.maxPosVelThresh = 0.0001; 
+legRevParams.maxNegVelThresh = -0.001; % in negative direction
+legRevParams.minPosVelThresh = 0.0001; % in pos dir, for leg position min
+legRevParams.minNegVelThresh = -0.001; % in neg dir, for leg position min
+% number of frames before and after max/min to check for velocity thresh
+legRevParams.numNegVelFrames = 8;
+legRevParams.numPosVelFrames = 12;
+
+% indicies (into maxIndsMov) of maxima to remove; initialize
+maxRmvInd = [];
+
+% loop through all maxima
+for i = 1:length(maxIndsMov)
+    % window before maximum
+    bfWinStart = maxIndsMov(i) - legRevParams.numPosVelFrames;
+    bfWinEnd = maxIndsMov(i) - 1; % index right before 
+    % window after maximum
+    afWinStart = maxIndsMov(i) + 1; % index right after
+    afWinEnd = maxIndsMov(i) + legRevParams.numNegVelFrames;
+    % this leg postion and index
+    thisLegInd = zeroXingParams.legInd(maxColsMov(i));
+    thisLegPos = srnLegX(maxIndsMov(i), thisLegInd);
+    
+    % number of before and after frames
+    numBfFrames = legRevParams.numPosVelFrames;
+    numAfFrames = legRevParams.numNegVelFrames;
+    
+    % if maximum occurs at first or last frame of the trial, only use 1
+    %  window to check if maximum is valid
+    if (maxIndsMov(i) == 1) % max is first frame of trial
+        % only check that after window is valid
+        afAvgPos = mean(srnLegX(afWinStart:afWinEnd, thisLegInd));
+        afAvgVel = (afAvgPos - thisLegPos) / numAfFrames;
+        % if invalid, save index
+        if (afAvgVel > legRevParams.maxNegVelThresh)
+            maxRmvInd = [maxRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    elseif (maxIndsMov(i) == numFrames) % max is last frame of trial
+        % only check that before window is valid
+        bfAvgPos = mean(srnLegX(bfWinStart:bfWinEnd, thisLegInd));
+        bfAvgVel = (thisLegPos - bfAvgPos) / numBfFrames;
+        % if invalid, save index
+        if (bfAvgVel < legRevParams.maxPosVelThresh)
+            maxRmvInd = [maxRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    end
+    
+    % check that windows are valid (contained b/w 1 and number of frames)
+    %  if max is w/in numVelFrames of start or end of trial, shorten window
+    %  accordingly (but can't be length zero, b/c taken care of with check
+    %  on whether max is at start or end of trial
+    
+    % set before window to start with trial start
+    if (bfWinStart < 1) 
+        bfWinStart = 1;
+        % adjust count on number of frames for appropriate velocity calc
+        numBfFrames = bfWinEnd - bfWinStart + 1;
+    end
+    % set after window to end with trial end
+    if (afWinEnd > numFrames)
+        afWinEnd = numFrames;
+        % adjust count on number of frames for appropriate velocity calc
+        numAfFrames = afWinEnd - afWinStart + 1;
+    end
+    
+    % get average velocities within window
+    bfAvgPos = mean(srnLegX(bfWinStart:bfWinEnd, thisLegInd));
+    bfAvgVel = (thisLegPos - bfAvgPos) / numBfFrames;
+    afAvgPos = mean(srnLegX(afWinStart:afWinEnd, thisLegInd));
+    afAvgVel = (afAvgPos - thisLegPos) / numAfFrames;
+
+    % check that 1st derivative meets threshold for both windows, if not,
+    %  add index to those to remove
+    if (afAvgVel > legRevParams.maxNegVelThresh) || ...
+            (bfAvgVel < legRevParams.maxPosVelThresh)
+        maxRmvInd = [maxRmvInd; i];
+    end
+end
+
+% remove all the indicies flagged for maxima
+maxIndsMovCorr = maxIndsMov;
+maxIndsMovCorr(maxRmvInd) = [];
+maxColsMovCorr = maxColsMov;
+maxColsMovCorr(maxRmvInd) = [];
+
+
+
+% for minima
+
+% initialize array of indicies to remove
+minRmvInd = [];
+
+% loop through all maxima
+for i = 1:length(minIndsMov)
+    % window before minimum
+    bfWinStart = minIndsMov(i) - legRevParams.numNegVelFrames;
+    bfWinEnd = minIndsMov(i) - 1; % index right before 
+    % window after minimum
+    afWinStart = minIndsMov(i) + 1; % index right after
+    afWinEnd = minIndsMov(i) + legRevParams.numPosVelFrames;
+    
+    % this leg postion and index
+    thisLegInd = zeroXingParams.legInd(minColsMov(i));
+    thisLegPos = srnLegX(minIndsMov(i), thisLegInd);
+    
+    % number of before and after frames
+    numBfFrames = legRevParams.numNegVelFrames;
+    numAfFrames = legRevParams.numPosVelFrames;
+    
+    % if minimum occurs at first or last frame of the trial, only use 1
+    %  window to check if minimum is valid
+    if (minIndsMov(i) == 1) % min is first frame of trial
+        % only check that after window is valid
+        afAvgPos = mean(srnLegX(afWinStart:afWinEnd, thisLegInd));
+        afAvgVel = (afAvgPos - thisLegPos) / numAfFrames;
+        % if invalid, save index
+        if (afAvgVel < legRevParams.minPosVelThresh)
+            minRmvInd = [minRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    elseif (minIndsMov(i) == numFrames) % min is last frame of trial
+        % only check that before window is valid
+        bfAvgPos = mean(srnLegX(bfWinStart:bfWinEnd, thisLegInd));
+        bfAvgVel = (thisLegPos - bfAvgPos) / numBfFrames;
+        % if invalid, save index
+        if (bfAvgVel > legRevParams.minNegVelThresh)
+            minRmvInd = [minRmvInd; i];
+        end
+        % continue to next iteration of loop
+        continue;
+    end
+    
+    % check that windows are valid (contained b/w 1 and number of frames)
+    %  if max is w/in numVelFrames of start or end of trial, shorten window
+    %  accordingly (but can't be length zero, b/c taken care of with check
+    %  on whether max is at start or end of trial
+    
+    % set before window to start with trial start
+    if (bfWinStart < 1) 
+        bfWinStart = 1;
+        % adjust count on number of frames for appropriate velocity calc
+        numBfFrames = bfWinEnd - bfWinStart + 1;
+    end
+    % set after window to end with trial end
+    if (afWinEnd > numFrames)
+        afWinEnd = numFrames;
+        % adjust count on number of frames for appropriate velocity calc
+        numAfFrames = afWinEnd - afWinStart + 1;
+    end
+    
+    % get average velocities within window
+    bfAvgPos = mean(srnLegX(bfWinStart:bfWinEnd, thisLegInd));
+    bfAvgVel = (thisLegPos - bfAvgPos) / numBfFrames;
+    afAvgPos = mean(srnLegX(afWinStart:afWinEnd, thisLegInd));
+    afAvgVel = (afAvgPos - thisLegPos) / numAfFrames;
+    
+    % check that 1st derivative meets threshold for both windows, if not,
+    %  add index to those to remove
+    if (afAvgVel < legRevParams.minPosVelThresh) || ...
+            (bfAvgVel > legRevParams.minNegVelThresh)
+        minRmvInd = [minRmvInd; i];
+    end
+end
+
+% remove all the indicies flagged for maxima
+minIndsMovCorr = minIndsMov;
+minIndsMovCorr(minRmvInd) = [];
+minColsMovCorr = minColsMov;
+minColsMovCorr(minRmvInd) = [];
+
+%% plots for min/max, after refinement with 1st derivative
+maxIndsR1 = maxIndsMovCorr(maxColsMovCorr == 1);
+minIndsR1 = minIndsMovCorr(minColsMovCorr == 1);
+maxValsR1 = srnLegX(maxIndsMovCorr(maxColsMovCorr == 1),1);
+minValsR1 = srnLegX(minIndsMovCorr(minColsMovCorr == 1),1);
+
+figure;
+plot(srnLegX(:,1));
+hold on;
+plot(maxIndsR1,maxValsR1, 'x', 'LineStyle', 'none');
+plot(minIndsR1,minValsR1, 'o', 'LineStyle', 'none');
+
+plot(zeroVelInd, srnLegX(zeroVelInd,1), '.', 'LineStyle', 'none');
+
+maxIndsR2 = maxIndsMovCorr(maxColsMovCorr == 2);
+minIndsR2 = minIndsMovCorr(minColsMovCorr == 2);
+maxValsR2 = srnLegX(maxIndsMovCorr(maxColsMovCorr == 2),2);
+minValsR2 = srnLegX(minIndsMovCorr(minColsMovCorr == 2),2);
+
+figure;
+plot(srnLegX(:,2));
+hold on;
+plot(maxIndsR2,maxValsR2, 'x', 'LineStyle', 'none');
+plot(minIndsR2,minValsR2, 'o', 'LineStyle', 'none');
+
+plot(zeroVelInd, srnLegX(zeroVelInd,2), '.', 'LineStyle', 'none');
+
+
 %% convert maxInds, minInds to steps
 % each step as triplet [startInd, midInd, endInd], steps defined as
 %  starting with leg at front-most position (minInds)
@@ -510,9 +874,13 @@ plot(zeroVelInd, srnLegX(zeroVelInd,2), '.', 'LineStyle', 'none');
 
 % get start and end indicies of not moving bouts
 % if not moving bouts separated by <= this value, merge them
-zeroVelAdjThresh = 1; 
+zeroVelAdjThresh = 50; % number of samples
 [notMoveStartInd, ~, notMoveEndInd, ~] = mergeAdjVecVals(...
     zeroVelInd, zeroVelAdjThresh);
+% aggressive bout merging here, b/c would otherwise break up steps
+
+% no merging of bouts
+% [notMoveStartInd, notMoveEndInd, notMoveBoutDur] = findBouts(zeroVelInd);
 
 % plot shading for not-moving bouts
 notMovingX = [notMoveStartInd'; notMoveStartInd'; notMoveEndInd'; notMoveEndInd'];
@@ -665,7 +1033,7 @@ stepInds = stepInds(1:(counter-1), :);
 stepsWhichLeg = stepsWhichLeg(1:(counter-1));
 
 %% Improve ID of walking/not-walking: parameter tweaking
-% 
+% TESTING ONLY - currently (8/12/21) not in use
 
 % notMoveParams.medFiltNumSamps = 10;
 % notMoveParams.zeroVelThreshMed = 0.0001; %0.004;
