@@ -15,8 +15,8 @@ refPts.headPtInd = 7;
 refPts.abdPtInd = 11;
 
 % parameters for smoothing for determining leg velocities
-smoParams.padLen = int32(50); % pad length in samples
-smoParams.sigma = int32(10); % in samples
+smoParams.padLen = 50; % pad length in samples
+smoParams.sigma = 10; % in samples
 
 % parameters for determining whether fly is moving
 % notMoveParams.medFiltNumSamps = 10;
@@ -215,7 +215,7 @@ figure; plot(srnLegX(:,1)); hold on; plot(movAvg(:,1));
 r1MovAvg = movmean(srnLegX(:,1),10);
 figure; plot(srnLegX(:,1)); hold on; plot(r1MovAvg);
 
-%% find reversals of leg position, attempt 4
+%% find reversals of leg position, attempt 4; CURRENT METHOD
 % smooth leg position aggressively using sliding window
 % using overlapping windows, find index of max, min
 % if index of max/min isn't the first or last index of the window, flag the
@@ -666,7 +666,7 @@ for i = 1:length(minIndsMov)
     end
 end
 
-% remove all the indicies flagged for maxima
+% remove all the indicies flagged for minima
 minIndsMovCorr = minIndsMov;
 minIndsMovCorr(minRmvInd) = [];
 minColsMovCorr = minColsMov;
@@ -677,13 +677,15 @@ minColsMovCorr(minRmvInd) = [];
 %  compute velocity as change in distance b/w this point and the max/min
 %  over time. Set threshold on this velocity
 % This should be less noisy...
+% Works, but doesn't seem to be an improvement over v1 (above) 8/31/21
+% DON'T USE (for now)
 
 % threshold of what 1st derivative (vel) should exceed in the positive
 %  direction for a position maximum
-legRevParams.maxPosVelThresh = 0.0001; 
-legRevParams.maxNegVelThresh = -0.001; % in negative direction
-legRevParams.minPosVelThresh = 0.0001; % in pos dir, for leg position min
-legRevParams.minNegVelThresh = -0.001; % in neg dir, for leg position min
+legRevParams.maxPosVelThresh = 0.00015; 
+legRevParams.maxNegVelThresh = -0.0015; % in negative direction
+legRevParams.minPosVelThresh = 0.00015; % in pos dir, for leg position min
+legRevParams.minNegVelThresh = -0.0015; % in neg dir, for leg position min
 % number of frames before and after max/min to check for velocity thresh
 legRevParams.numNegVelFrames = 8;
 legRevParams.numPosVelFrames = 12;
@@ -849,7 +851,7 @@ for i = 1:length(minIndsMov)
     end
 end
 
-% remove all the indicies flagged for maxima
+% remove all the indicies flagged for minima
 minIndsMovCorr = minIndsMov;
 minIndsMovCorr(minRmvInd) = [];
 minColsMovCorr = minColsMov;
@@ -912,23 +914,53 @@ patch(notMovingX, notMovingY, 'black', 'FaceAlpha', 0.3');
 
 
 
-
 % initialize step arrays
-stepInds = zeros(length(minIndsMov),3); 
+stepInds = zeros(length(minIndsMovCorr),3); 
 % corresponds to Cols arrays when IDing local min/maxes
-stepsWhichLeg = zeros(length(minIndsMov),1);
+stepsWhichLeg = zeros(length(minIndsMovCorr),1);
 
 % initialize step counter
 counter = 1;
 
+% debugging: for each minIndsMovCorr point that doesn't become a step, keep
+%  track of why
+disqualPts.notMove = []; % start point in not moving bout
+disqualPts.minFMin = []; % start point is followed by another min
+disqualPts.noMidpt = []; % no midpoint for this start point in trial
+% midpoint not in same moving bout as start point
+disqualPts.midptDiffMoveBout = []; 
+disqualPts.maxFMax = []; % midpoint is followed by another max
+disqualPts.noEndpt = []; % no endpoint for this start point in trial
+% endpoint is not in same moving bout as start point
+disqualPts.endptDiffMoveBout = [];
+
+
+
+
 % loop through all minInds elements
-for i = 1:2%length(minIndsMov)
+for i = 1:length(minIndsMovCorr)
+    
+    % frame index of this potential start point (minimum)
+    thisPotStart = minIndsMovCorr(i);
+    
+    % get leg for potential start point
+    thisLeg = minColsMovCorr(i);
+    
+    % consider minIndsMovCorr and maxIndsMovCorr only for this leg
+    thisLegMinInds = minIndsMovCorr(minColsMovCorr == thisLeg);
+    thisLegMaxInds = maxIndsMovCorr(maxColsMovCorr == thisLeg);
+    
+    % index of this potential start point into
+    %  thisLegMinInds/thisLegMaxInds
+    thisPotStartInd = find(thisLegMinInds == thisPotStart);
+    
     
     % check if this minInd is within not moving bout
     
     % index into notMoveStartInd of not move bout start point immediately
     % preceding this minInd
-    thisNotMoveStartInd = find(minIndsMov(i) > notMoveStartInd, 1, 'last');
+    thisNotMoveStartInd = find(thisPotStart > notMoveStartInd, 1, ...
+        'last');
     % if there could be a not moving bout that this belongs to (empty if
     %  this minInd falls earlier than start of first not moving bout; i.e.
     %  if fly is walking at very beginning of trial)
@@ -939,11 +971,11 @@ for i = 1:2%length(minIndsMov)
         %  are paired)
         thisNotMoveEnd = notMoveEndInd(thisNotMoveStartInd);
         
-        % check if this minInds falls within this not moving bout (is its
-        %  value less than thisNotMoveEnd?)
+        % check if this potential start point falls within this not moving 
+        %  bout (is its value less than thisNotMoveEnd?)
         % if yes, continue this loop without executing rest
-        if (minIndsMov(i) < thisNotMoveEnd) 
-            disp('a');
+        if (thisPotStart < thisNotMoveEnd) 
+            disqualPts.notMove = [disqualPts.notMove; i];
             continue;
         end
     end
@@ -951,9 +983,9 @@ for i = 1:2%length(minIndsMov)
     % convert start and end indicies of not moving bouts to start and end
     %  indicies for moving bout that this step start point belongs to
     
-    % index of notMoveEndInd for first time this minInd exceeds, to get
+    % index of notMoveEndInd for last time this minInd exceeds, to get
     %  start index of moving bout
-    thisMoveStart = find(minIndsMov(i) > notMoveEndInd, 1, 'first');
+    thisMoveStart = find(thisPotStart > notMoveEndInd, 1, 'last');
     
     % if this minInd never greater than notMoveEndInd, fly must be moving
     %  at the beginning
@@ -976,59 +1008,82 @@ for i = 1:2%length(minIndsMov)
     end
     
     
-    % using this minInds, which defines start point of step, find indicies
+    % using this potential start point, find indicies
     %  that define step mid point (from maxInd) and end point (from minInd)
-    stepStartPt = minIndsMov(i);
+    stepStartPt = thisPotStart;
+    
+    % check whether this step start point (as a min), is followed by
+    %  another min or by a max
+    % should be a max, but if not, don't use this start point
+    % check if there is a next min point
+    % this start index is the last min point for this leg
+    if (thisPotStartInd == length(thisLegMinInds))
+        % if there's no next min point, there must not be end point for
+        % this step
+        disqualPts.noEndpt = [disqualPts.noEndpt; i];
+        continue;
+    else % there are additional points
+        nextMinPt = thisLegMinInds(thisPotStartInd + 1); 
+        nextMaxPt = find(thisLegMaxInds > stepStartPt, 1, 'first');
+        % min follows start point, not max; don't use this start point
+        if (nextMinPt < nextMaxPt)
+            disqualPts.minFMin = [disqualPts.minFMin; i];
+            continue;
+        end
+    end
     
     % find mid point - maxInds value that immediately follows step start pt
-    % index into maxInd of this point
-    midPtInd = find(maxIndsMov > stepStartPt, 1, 'first');
+    % index into thisLegMaxInds of this point
+    midPtInd = find(thisLegMaxInds > stepStartPt, 1, 'first');
     % if there is no such point, this full step is not found in the trial,
     %  continue this loop without executing rest
     if isempty(midPtInd)
-        disp('b');
-        continue;
-    end
-    % check that this identified midPtInd is for the same leg as the start
-    %  point; otherwise, continue loop without executing rest
-    if (minWinsColsEndInd(i) ~= maxWinsColsEndInd(midPtInd))
-        disp('c');
+        disqualPts.noMidpt = [disqualPts.noMidpt; i];
         continue;
     end
     
     % convert this index into maxInd into frame index of step mid point
-    stepMidPt = maxIndsMov(midPtInd);
+    stepMidPt = thisLegMaxInds(midPtInd);
     
     % check that this midpoint is within the same moving bout as the step
     %  start point; if not, continue loop without executing the rest
     if (stepMidPt < thisMoveStartInd) || (stepMidPt > thisMoveEndInd)
-        disp('d');
+        disqualPts.midptDiffMoveBout = [disqualPts.midptDiffMoveBout; i];
         continue;
+    end
+    
+    % check whether this step mid point (as a max), is followed by
+    %  another max or by a min
+    % should be a min, but if not, don't use this start point
+    % check whether there is a subsequent max point (if not, don't use this
+    %  check)
+    if (midPtInd ~= length(thisLegMaxInds))
+        nextMaxPt = thisLegMaxInds(midPtInd + 1);
+        nextMinPt = thisLegMinInds(thisPotStartInd + 1); % same as above
+        if (nextMinPt > nextMaxPt)
+            disqualPts.maxFMax = [disqualPts.maxFMax; i];
+            continue;
+        end
     end
     
     
     % find end point - minInd value that immediately follows step mid pt
-    % index into minInd of this point
-    endPtInd = find(minInds > stepMidPt, 1, 'first');
+    % index into thisLegMinInds of this point
+    endPtInd = find(thisLegMinInds > stepMidPt, 1, 'first');
     % if there is no such point, this full step is not found in the trial,
     %  continue this loop without executing rest
     if isempty(endPtInd)
-        disp('e');
+        disqualPts.noEndpt = [disqualPts.noEndPt; i];
         continue;
     end
-    % check that this identified endPtInd is for the same leg as the start
-    %  point; otherwise, continue loop without executing rest
-    if (minWinsColsEndInd(i) ~= minWinsColsEndInd(endPtInd))
-        disp('f');
-        continue;
-    end
+
     % convert this index into minInd into frame index of step end point
-    stepEndPt = minIndsMov(endPtInd);
+    stepEndPt = thisLegMinInds(endPtInd);
     
     % check that this endpoint is within the same moving bout as the step
     %  start point; if not, continue loop without exectuing the rest
     if (stepEndPt < thisMoveStartInd) || (stepEndPt > thisMoveEndInd)
-        disp('g');
+        disqualPts.endptDiffMoveBout = [disqualPts.endptDiffMoveBout; i];
         continue;
     end
     
@@ -1037,7 +1092,7 @@ for i = 1:2%length(minIndsMov)
     % step indicies
     stepInds(counter,:) = [stepStartPt, stepMidPt, stepEndPt];
     % which leg
-    stepsWhichLeg(counter) = minWinsColsEndInd(i);
+    stepsWhichLeg(counter) = thisLeg;
     
     % update counter
     counter = counter + 1;
@@ -1047,6 +1102,71 @@ end
 % not all minInds points became steps; clear the excess zeros from the end
 stepInds = stepInds(1:(counter-1), :);
 stepsWhichLeg = stepsWhichLeg(1:(counter-1));
+
+%% plot steps, overlayed on leg positions in X or Y  
+% one plot for each leg
+
+% leg X positions
+for i = 1:length(zeroXingParams.legInd)
+    thisLeg = zeroXingParams.legInd(i);
+    
+    % stepInds for this leg
+    stepIndsThisLeg = stepInds(stepsWhichLeg==thisLeg,:);
+    
+    % subtract 1 from end index
+    stepIndsThisLeg(:,3) = stepIndsThisLeg(:,3) - 1;
+    
+    figure;
+    
+    plot(srnLegX(:,thisLeg), 'k'); % plot leg position
+    hold on;
+    
+    % get leg position value for each step
+    % preallocate
+    stepLegPos = zeros(size(stepIndsThisLeg));
+
+    for j = 1:size(stepIndsThisLeg,1)
+        stepLegPos(j,:) = srnLegX(stepIndsThisLeg(j,:),thisLeg)';
+    end
+    
+    % plot steps
+    plot(stepIndsThisLeg',stepLegPos', 'x', 'MarkerSize', 10);
+    
+    % add title
+    title([zeroXingParams.legNames{i} ' leg X position']);
+    
+end
+
+% leg Y positions
+for i = 1:length(zeroXingParams.legInd)
+    thisLeg = zeroXingParams.legInd(i);
+    
+    % stepInds for this leg
+    stepIndsThisLeg = stepInds(stepsWhichLeg==thisLeg,:);
+    
+    % subtract 1 from end index
+    stepIndsThisLeg(:,3) = stepIndsThisLeg(:,3) - 1;
+    
+    figure;
+    
+    plot(srnLegY(:,thisLeg), 'k'); % plot leg position
+    hold on;
+    
+    % get leg position value for each step
+    % preallocate
+    stepLegPos = zeros(size(stepIndsThisLeg));
+
+    for j = 1:size(stepIndsThisLeg,1)
+        stepLegPos(j,:) = srnLegY(stepIndsThisLeg(j,:),thisLeg)';
+    end
+    
+    % plot steps
+    plot(stepIndsThisLeg',stepLegPos', 'x', 'MarkerSize', 10);
+    
+    % add title; leg and whether X or Y position
+    title([zeroXingParams.legNames{i} ' leg Y position']);
+    
+end
 
 %% Improve ID of walking/not-walking: parameter tweaking
 % TESTING ONLY - currently (8/12/21) not in use

@@ -62,4 +62,9 @@ function smoVec = gaussSmooth(vec, padLen, kernLen)
     
     % remove padding
     smoVec = vecConv((padLen + 1):(length(vecConv)-padLen));
+    
+    % if vec was originally column vector, change smoVec to column vector
+    if iscolumn(vec)
+        smoVec = smoVec';
+    end
 end

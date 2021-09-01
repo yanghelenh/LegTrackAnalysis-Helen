@@ -19,6 +19,7 @@
 % 
 % UPDATED:
 %   11/18/20 - HHY
+%   8/31/21 - HHY - replace python call with equivalent matlab function
 %
 function legVel = findLegVel(srnLeg, smoParams)
     % preallocate
@@ -26,11 +27,14 @@ function legVel = findLegVel(srnLeg, smoParams)
 
     % loop through all tracked points
     for i = 1:size(srnLegSmo,2)
-        smoPosPy = py.proc_utils.safe_interp_conv_smooth_ball_data(...
-            srnLeg(:,i)', smoParams.padLen, smoParams.sigma);
-        % convert from python to matlab data format
-        smoPos = cell2mat(cell(smoPosPy.tolist()));
-        srnLegSmo(:,i) = smoPos';
+%         smoPosPy = py.proc_utils.safe_interp_conv_smooth_ball_data(...
+%             srnLeg(:,i)', smoParams.padLen, smoParams.sigma);
+%         % convert from python to matlab data format
+%         smoPos = cell2mat(cell(smoPosPy.tolist()));
+%         srnLegSmo(:,i) = smoPos';
+
+        srnLegSmo(:,i) = gaussSmooth(srnLeg(:,i), smoParams.padLen, ...
+            smoParams.sigma);
     end
 
     % get leg velocities by taking gradient
