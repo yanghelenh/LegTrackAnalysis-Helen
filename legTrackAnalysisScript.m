@@ -889,6 +889,7 @@ plot(zeroVelInd, srnLegX(zeroVelInd,2), '.', 'LineStyle', 'none');
 % each step as triplet [startInd, midInd, endInd], steps defined as
 %  starting with leg at front-most position (minInds)
 % filter to keep steps within the same moving bout
+% CURRENTLY WORKING as of 9/2/21
 
 % get start and end indicies of not moving bouts
 % if not moving bouts separated by <= this value, merge them
@@ -1024,7 +1025,8 @@ for i = 1:length(minIndsMovCorr)
         continue;
     else % there are additional points
         nextMinPt = thisLegMinInds(thisPotStartInd + 1); 
-        nextMaxPt = find(thisLegMaxInds > stepStartPt, 1, 'first');
+        nextMaxPt = thisLegMaxInds(find(thisLegMaxInds > stepStartPt, 1,...
+            'first'));
         % min follows start point, not max; don't use this start point
         if (nextMinPt < nextMaxPt)
             disqualPts.minFMin = [disqualPts.minFMin; i];
