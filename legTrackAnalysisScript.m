@@ -858,32 +858,50 @@ minColsMovCorr = minColsMov;
 minColsMovCorr(minRmvInd) = [];
 
 %% plots for min/max, after refinement with 1st derivative
-maxIndsR1 = maxIndsMovCorr(maxColsMovCorr == 1);
-minIndsR1 = minIndsMovCorr(minColsMovCorr == 1);
-maxValsR1 = srnLegX(maxIndsMovCorr(maxColsMovCorr == 1),1);
-minValsR1 = srnLegX(minIndsMovCorr(minColsMovCorr == 1),1);
 
-figure;
-plot(srnLegX(:,1));
-hold on;
-plot(maxIndsR1,maxValsR1, 'x', 'LineStyle', 'none');
-plot(minIndsR1,minValsR1, 'o', 'LineStyle', 'none');
+for i = 1:length(zeroXingParams.legInd)
+    thisLeg = zeroXingParams.legInd(i);
+    
+    theseMaxInds = maxIndsMovCorr(maxColsMovCorr == thisLeg);
+    theseMinInds = minIndsMovCorr(minColsMovCorr == thisLeg);
+    theseMaxVals = srnLegX(maxIndsMovCorr(maxColsMovCorr == thisLeg),thisLeg);
+    theseMinVals = srnLegX(minIndsMovCorr(minColsMovCorr == thisLeg),thisLeg);
+    
+    figure;
+    plot(srnLegX(:,thisLeg));
+    hold on;
+    plot(theseMaxInds, theseMaxVals, 'x', 'LineStyle', 'none');
+    plot(theseMinInds, theseMinVals, 'o', 'LineStyle', 'none');
+    
+    % add title; leg and whether X or Y position
+    title([zeroXingParams.legNames{i} ' leg X position']);
+end
 
-plot(zeroVelInd, srnLegX(zeroVelInd,1), '.', 'LineStyle', 'none');
-
-maxIndsR2 = maxIndsMovCorr(maxColsMovCorr == 2);
-minIndsR2 = minIndsMovCorr(minColsMovCorr == 2);
-maxValsR2 = srnLegX(maxIndsMovCorr(maxColsMovCorr == 2),2);
-minValsR2 = srnLegX(minIndsMovCorr(minColsMovCorr == 2),2);
-
-figure;
-plot(srnLegX(:,2));
-hold on;
-plot(maxIndsR2,maxValsR2, 'x', 'LineStyle', 'none');
-plot(minIndsR2,minValsR2, 'o', 'LineStyle', 'none');
-
-plot(zeroVelInd, srnLegX(zeroVelInd,2), '.', 'LineStyle', 'none');
-
+% maxIndsR1 = maxIndsMovCorr(maxColsMovCorr == 1);
+% minIndsR1 = minIndsMovCorr(minColsMovCorr == 1);
+% maxValsR1 = srnLegX(maxIndsMovCorr(maxColsMovCorr == 1),1);
+% minValsR1 = srnLegX(minIndsMovCorr(minColsMovCorr == 1),1);
+% 
+% figure;
+% plot(srnLegX(:,1));
+% hold on;
+% plot(maxIndsR1,maxValsR1, 'x', 'LineStyle', 'none');
+% plot(minIndsR1,minValsR1, 'o', 'LineStyle', 'none');
+% 
+% plot(zeroVelInd, srnLegX(zeroVelInd,1), '.', 'LineStyle', 'none');
+% 
+% maxIndsR2 = maxIndsMovCorr(maxColsMovCorr == 2);
+% minIndsR2 = minIndsMovCorr(minColsMovCorr == 2);
+% maxValsR2 = srnLegX(maxIndsMovCorr(maxColsMovCorr == 2),2);
+% minValsR2 = srnLegX(minIndsMovCorr(minColsMovCorr == 2),2);
+% 
+% figure;
+% plot(srnLegX(:,2));
+% hold on;
+% plot(maxIndsR2,maxValsR2, 'x', 'LineStyle', 'none');
+% plot(minIndsR2,minValsR2, 'o', 'LineStyle', 'none');
+% 
+% plot(zeroVelInd, srnLegX(zeroVelInd,2), '.', 'LineStyle', 'none');
 
 %% convert maxInds, minInds to steps
 % each step as triplet [startInd, midInd, endInd], steps defined as
@@ -1307,4 +1325,21 @@ end
 figure;
 scatter(icaFeatures(:,1),icaFeatures(:,2), 36, cm, 'filled', 'MarkerFaceAlpha', ...
     0.03, 'MarkerEdgeAlpha', 0.03);
+
+%% Compute parameters for steps %%
+
+%% Step length (in xy plane)
+%% Step direction (in xy plane)
+%% Step duration (for each half step as well as whole step)
+%% Velocity of each half step (in xy plane, x and y components)
+
+%% Swing/stance call for each half step using comparison to FicTrac
+
+% interpolate fictrac forward velocity to legVidFrametimes
+interpFtFwd = interp1(fictracProc.t, fictracProc.fwdVel, leg.frameTimes);
+
+
+
+
+%% Swing/stance call for each half step 
 
