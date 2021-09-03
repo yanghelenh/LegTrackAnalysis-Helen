@@ -148,7 +148,7 @@ legXPhase = determineLegPhase(srnLegX, zeroXingParams.legInd);
 legYPhase = determineLegPhase(srnLegY, zeroXingParams.legInd);
 
 % leg direction during step
-stepDirs = determineStepDirection(srnLegX, srnLegY, stepInd, ...
+stepDirections = determineStepDirection(srnLegX, srnLegY, stepInd, ...
     zeroXingParams.legInd);
 
 % length of each step
@@ -1328,13 +1328,18 @@ scatter(icaFeatures(:,1),icaFeatures(:,2), 36, cm, 'filled', 'MarkerFaceAlpha', 
 
 %% Compute parameters for steps %%
 
-%% Step length (in xy plane)
+%% Step length and direction (xy plane); durations; velocities (xy plane and indiv)
 
 % preallocate - 1st column is length of start to mid; 2nd column is mid to
 %  end
-stepLengths = zeros(size(stepInds,1),2); 
+stepLengths = zeros(size(stepInds,1), 2); 
+stepDirections = zeros(size(stepInds,1), 2);
+stepDurations = zeros(size(stepInds,1), 2);
+stepVelocities = zeros(size(stepInds,1), 2);
+stepVelX = zeros(size(stepInds,1), 2);
+stepVelY = zeros(size(stepInds,1), 2);
 
-% loop through all steps, get lengths for each half step
+% loop through all steps, compute parameters for each half step
 for i = 1:size(stepInds, 1)
     % get X position for step start
     stepStartX = srnLegX(stepInds(i,1), stepsWhichLeg(i));
@@ -1353,21 +1358,308 @@ for i = 1:size(stepInds, 1)
     stepLengths(i,1) = distBtw2Pts(stepStartX, stepStartY, stepMidX, ...
         stepMidY);
     % get length of second half step (mid to end)
-    stepLengths(i,2) = distBtw2Pts(stepMidX, stepMidY, stepEndX, stepEndY);   
+    stepLengths(i,2) = distBtw2Pts(stepMidX, stepMidY, stepEndX, stepEndY);
+    
+    % get direction of first half step (start to mid)
+    stepDirections(i,1) = findAngle2Pts(stepStartX, stepStartY, stepMidX, ...
+        stepMidY);
+    % get direction of second half step (mid to end)
+    stepDirections(i,2) = findAngle2Pts(stepMidX, stepMidY, stepEndX, ...
+        stepEndY);
+    
+    % get time for step start
+    stepStartT = leg.frameTimes(stepInds(i,1));
+    % get time for step mid
+    stepMidT = leg.frameTimes(stepInds(i,2));
+    % get time for step end
+    stepEndT = leg.frameTimes(stepInds(i,3));
+    
+    % get duration of first half step (start to mid)
+    stepDurations(i,1) = stepMidT - stepStartT;
+    % get duration of second half step (mid to end)
+    stepDurations(i,2) = stepEndT - stepMidT;
+    
+    % get velocity in xy plane of first half step (start to mid)
+    stepVelocities(i,1) = stepLengths(i,1) / stepDurations(i,1);
+    % get velocity in xy plane of second half step (mid to end)
+    stepVelocities(i,2) = stepLengths(i,2) / stepDurations(i,2);
+    
+    % get velocity in x for first half of step (start to mid)
+    stepVelX(i,1) = (stepMidX - stepStartX) / stepDurations(i,1);
+    % get velocity in x for second half step (mid to end)
+    stepVelX(i,2) = (stepEndX - stepMidX) / stepDurations(i,2);
+    
+    % get velocity in y for first half of step (start to mid)
+    stepVelY(i,1) = (stepMidY - stepStartY) / stepDurations(i,1);
+    % get velocity in y for second half step (mid to end)
+    stepVelY(i,2) = (stepEndY - stepMidY) / stepDurations(i,2);  
+end
+
+%% histograms of step lengths
+
+for i = 1:length(zeroXingParams.legInd)
+    
+    thisLeg = zeroXingParams.legInd(i);
+    
+    thisLegStepLengths = stepLengths(stepsWhichLeg == thisLeg, :);
+    
+    figure;
+    
+    histogram(thisLegStepLengths(:,1),100);
+    hold on;
+    histogram(thisLegStepLengths(:,2), 100, 'FaceColor', 'red', ...
+        'EdgeColor', 'red');
+    
+    med1 = median(thisLegStepLengths(:,1));
+    med2 = median(thisLegStepLengths(:,2));
+    
+    titleStr = sprintf('Step Length: Leg %s, med1 = %f, med2 = %f', ...
+        zeroXingParams.legNames{i}, med1, med2);
+    title(titleStr);
+    
+end
+
+%% histograms of step directions
+
+for i = 1:length(zeroXingParams.legInd)
+    
+    thisLeg = zeroXingParams.legInd(i);
+    
+    thisLegStepDirs = stepDirections(stepsWhichLeg == thisLeg, :);
+    
+    figure;
+    
+    histogram(thisLegStepDirs(:,1),100);
+    hold on;
+    histogram(thisLegStepDirs(:,2), 100, 'FaceColor', 'red', ...
+        'EdgeColor', 'red');
+    
+    med1 = median(thisLegStepDirs(:,1));
+    med2 = median(thisLegStepDirs(:,2));
+    
+    titleStr = sprintf('Step Direction: Leg %s, med1 = %f, med2 = %f', ...
+        zeroXingParams.legNames{i}, med1, med2);
+    title(titleStr);
+    
+end
+
+%% histograms of step durations
+for i = 1:length(zeroXingParams.legInd)
+    
+    thisLeg = zeroXingParams.legInd(i);
+    
+    thisLegStepDurs = stepDurations(stepsWhichLeg == thisLeg, :);
+    
+    figure;
+    
+    histogram(thisLegStepDurs(:,1),100);
+    hold on;
+    histogram(thisLegStepDurs(:,2), 100, 'FaceColor', 'red', ...
+        'EdgeColor', 'red');
+    
+    med1 = median(thisLegStepDurs(:,1));
+    med2 = median(thisLegStepDurs(:,2));
+    
+    titleStr = sprintf('Step Duration: Leg %s, med1 = %f, med2 = %f', ...
+        zeroXingParams.legNames{i}, med1, med2);
+    title(titleStr);
+    
+end
+
+%% histograms of step velocities, xy plane
+for i = 1:length(zeroXingParams.legInd)
+    
+    thisLeg = zeroXingParams.legInd(i);
+    
+    thisLegStepVels = stepVelocities(stepsWhichLeg == thisLeg, :);
+    
+    figure;
+    
+    histogram(thisLegStepVels(:,1),100);
+    hold on;
+    histogram(thisLegStepVels(:,2), 100, 'FaceColor', 'red', ...
+        'EdgeColor', 'red');
+    
+    med1 = median(thisLegStepDurs(:,1));
+    med2 = median(thisLegStepDurs(:,2));
+    
+    titleStr = sprintf('Step Velocity (xy): Leg %s, med1 = %f, med2 = %f', ...
+        zeroXingParams.legNames{i}, med1, med2);
+    title(titleStr);
+    
+end
+
+%% histograms of step X velocities
+for i = 1:length(zeroXingParams.legInd)
+    
+    thisLeg = zeroXingParams.legInd(i);
+    
+    thisLegStepVels = stepVelX(stepsWhichLeg == thisLeg, :);
+    
+    figure;
+    
+    histogram(thisLegStepVels(:,1),100);
+    hold on;
+    histogram(thisLegStepVels(:,2), 100, 'FaceColor', 'red', ...
+        'EdgeColor', 'red');
+    
+    med1 = median(thisLegStepDurs(:,1));
+    med2 = median(thisLegStepDurs(:,2));
+    
+    titleStr = sprintf('Step X Velocity: Leg %s, med1 = %f, med2 = %f', ...
+        zeroXingParams.legNames{i}, med1, med2);
+    title(titleStr);
+    
+end
+
+%% histograms of step Y velocities
+for i = 1:length(zeroXingParams.legInd)
+    
+    thisLeg = zeroXingParams.legInd(i);
+    
+    thisLegStepVels = stepVelY(stepsWhichLeg == thisLeg, :);
+    
+    figure;
+    
+    histogram(thisLegStepVels(:,1),100);
+    hold on;
+    histogram(thisLegStepVels(:,2), 100, 'FaceColor', 'red', ...
+        'EdgeColor', 'red');
+    
+    med1 = median(thisLegStepDurs(:,1));
+    med2 = median(thisLegStepDurs(:,2));
+    
+    titleStr = sprintf('Step Y Velocity: Leg %s, med1 = %f, med2 = %f', ...
+        zeroXingParams.legNames{i}, med1, med2);
+    title(titleStr);
+    
+end
+
+%% Swing/stance call for each half step using comparison to FicTrac
+% same direction is stance, opposite direction is swing
+
+% interpolate FicTrac position to leg frame times (spline)
+interpFtFwdPos = interp1(fictracProc.t, fictracProc.fwdCumPos, ...
+    leg.frameTimes, 'spline');
+
+% get swing/stance call for each step's half steps; 
+% 1 for stance, -1 for swing 
+% preallocate
+stepSwingStanceFt = zeros(size(stepInds,1), 2);
+
+% loop through all steps, determine whether swing or stance
+for i = 1:size(stepInds, 1)
+    
+    % FicTrac fwd position for step start point
+    stepStartFtFwdPos = interpFtFwdPos(stepInds(i,1));
+    % FicTrac fwd position for step mid point
+    stepMidFtFwdPos = interpFtFwdPos(stepInds(i,2));
+    % FicTrac fwd position for step end point
+    stepEndFtFwdPos = interpFtFwdPos(stepInds(i,3));
+    
+    % get FicTrac velocity (delta fwd position / delta time), binarized +1 
+    % for moving forward, -1 for moving backwards 
+    thisStepFtFwdVel = (stepMidFtFwdPos - stepStartFtFwdPos) / ...
+        stepDurations(i,1);
+    if (thisStepFtFwdVel >= 0)
+        thisStepBinFtFwdVel = 1; % fwd = 1
+    else
+        thisStepBinFtFwdVel = -1; % not fwd = -1
+    end
+    
+    % get binarized leg velocity
+    thisStepLegXVel = stepVelX(i,1);
+    if (thisStepLegXVel >= 0)
+        thisStepBinLegXVel = 1; % fwd/front-to-back = 1
+    else
+        thisStepBinLegXVel = -1; % not fwd/back-to-front = -1
+    end
+    
+    % determine whether this half step is swing or stance by multiplying
+    %  together 2 binarized velocities
+    % with how directions are defined, same direction multiplies to 1 and
+    %  is stance, opposite direction multiplies to -1 and is swing
+    stepSwingStanceFt(i,1) = thisStepBinFtFwdVel * thisStepBinLegXVel;
+    
+    
+    % repeat for second half step
+    
+    % get FicTrac velocity (delta fwd position / delta time), binarized +1 
+    % for moving forward, -1 for moving backwards 
+    thisStepFtFwdVel = (stepEndFtFwdPos - stepMidFtFwdPos) / ...
+        stepDurations(i,2);
+    if (thisStepFtFwdVel >= 0)
+        thisStepBinFtFwdVel = 1; % fwd = 1
+    else
+        thisStepBinFtFwdVel = -1; % not fwd = -1
+    end
+    
+    % get binarized leg velocity
+    thisStepLegXVel = stepVelX(i,2);
+    if (thisStepLegXVel >= 0)
+        thisStepBinLegXVel = 1; % fwd/front-to-back = 1
+    else
+        thisStepBinLegXVel = -1; % not fwd/back-to-front = -1
+    end
+    
+    % determine whether this half step is swing or stance by multiplying
+    %  together 2 binarized velocities
+    % with how directions are defined, same direction multiplies to 1 and
+    %  is stance, opposite direction multiplies to -1 and is swing
+    stepSwingStanceFt(i,2) = thisStepBinFtFwdVel * thisStepBinLegXVel;
+end
+
+%% Swing/stance call for each half step using step duration
+% for each step, half step with shorter duration is swing and one with
+%  longer duration is stance
+
+% get swing/stance call for each step's half steps; 
+% 1 for stance, -1 for swing 
+% preallocate
+stepSwingStanceDur = zeros(size(stepInds,1), 2);
+
+% loop through all steps, determine whether swing or stance
+for i = 1:size(stepInds, 1)
+    % compare durations of each half step; assign swing/stance
+    %  appropriately
+    if (stepDurations(i,1) >= stepDurations(i,2))
+        stepSwingStanceDur(i,1) = 1;
+        stepSwingStanceDur(i,2) = -1;
+    else
+        stepSwingStanceDur(i,1) = -1;
+        stepSwingStanceDur(i,2) = 1;
+    end
+end
+
+%% for each frame, for each leg, ID whether swing, stance, not moving, no step call
+% swing = -1; stance = 1; not moving = 0; no step call = -2
+% not moving as called for step determination
+% no step call for some frames b/c of thrown out min/max in step
+%  determination
+% useful for plotting
+
+% which swing/stance method (comment out other one)
+% stepSwingStance = stepSwingStanceFt;
+stepSwingStance = stepSwingStanceDur;
+
+% preallocate (frames x #legs); with -2 for no step call, as others better
+%  defined and this captures remainder
+framesSwingStance = ones(length(leg.frameTimes),...
+    length(zeroXingParams.legInd)) * -2;
+
+% loop through legs
+for i = 1:length(zeroXingParams.legInd)
+    % loop through steps, assign values for those indicies
+    for j = 1:size(stepInds,1)
+        
+    end
+    
+    % loop through not moving bouts, assign values for those indicies
+    for j = 1:length(notMoveStartInd)
+        
+    end
 end
 
 
-%% Step direction (in xy plane)
-%% Step duration (for each half step as well as whole step)
-%% Velocity of each half step (in xy plane, x and y components)
 
-%% Swing/stance call for each half step using comparison to FicTrac
-
-% interpolate fictrac forward velocity to legVidFrametimes
-interpFtFwd = interp1(fictracProc.t, fictracProc.fwdVel, leg.frameTimes);
-
-
-
-
-%% Swing/stance call for each half step 
-
+%% plot swing/stance, leg positions, FicTrac velocities
