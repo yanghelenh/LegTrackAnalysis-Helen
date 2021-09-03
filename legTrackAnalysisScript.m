@@ -58,10 +58,10 @@ zeroXingParams.minStepDur = 2;
 
 %% 200821_fly01_cell01_trial01 - mac
 % full path to .trk leg tracking data
-trkFilePath = ['D:\WilsonLab\Dropbox (HMS)\APTlegTracking\'...
-    'Tracking_v1_mdn_labeled2798_ephys\' ...
+trkFilePath = ['/Users/hyang/Dropbox (HMS)/APTlegTracking/'...
+    'Tracking_v1_mdn_labeled2798_ephys/' ...
     '200821_fly01_cell01_trial01_legVid_crop_caLegTrack_v1_mdn.trk'];
-pDataFilePath = ['D:\WilsonLab\Dropbox (HMS)\EphysAnalysis-Helen\pData\'...
+pDataFilePath = ['/Users/hyang/Dropbox (HMS)/EphysAnalysis-Helen/pData/'...
     '200821_fly01_cell01_trial01.mat'];
 
 %% 200826_fly01_cell01_trial01 - mac
@@ -1329,6 +1329,34 @@ scatter(icaFeatures(:,1),icaFeatures(:,2), 36, cm, 'filled', 'MarkerFaceAlpha', 
 %% Compute parameters for steps %%
 
 %% Step length (in xy plane)
+
+% preallocate - 1st column is length of start to mid; 2nd column is mid to
+%  end
+stepLengths = zeros(size(stepInds,1),2); 
+
+% loop through all steps, get lengths for each half step
+for i = 1:size(stepInds, 1)
+    % get X position for step start
+    stepStartX = srnLegX(stepInds(i,1), stepsWhichLeg(i));
+    % get Y position for step start
+    stepStartY = srnLegY(stepInds(i,1), stepsWhichLeg(i));
+    % get X position for step mid
+    stepMidX = srnLegX(stepInds(i,2), stepsWhichLeg(i));
+    % get Y position for step mid
+    stepMidY = srnLegY(stepInds(i,2), stepsWhichLeg(i));
+    % get X position for step end
+    stepEndX = srnLegX(stepInds(i,3), stepsWhichLeg(i));
+    % get Y position for step end
+    stepEndY = srnLegY(stepInds(i,3), stepsWhichLeg(i));
+    
+    % get length of first half step (start to mid)
+    stepLengths(i,1) = distBtw2Pts(stepStartX, stepStartY, stepMidX, ...
+        stepMidY);
+    % get length of second half step (mid to end)
+    stepLengths(i,2) = distBtw2Pts(stepMidX, stepMidY, stepEndX, stepEndY);   
+end
+
+
 %% Step direction (in xy plane)
 %% Step duration (for each half step as well as whole step)
 %% Velocity of each half step (in xy plane, x and y components)
