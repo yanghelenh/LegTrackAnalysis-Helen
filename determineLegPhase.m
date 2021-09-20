@@ -15,14 +15,21 @@
 %
 % UPDATED:
 %   11/19/20 - HHY
+%   9/14/21 - HHY - update how radian to degree conversion works
+%   9/20/21 - HHY - z-score leg position for Hilbert transform
 %
 function legPhase = determineLegPhase(legPos, legInd)
     % preallocate
     legPhase = zeros(size(legPos,1), length(legInd));
     
-    % get leg phase, in degrees
+    
+    % loop through all legs
     for i = 1:length(legInd)
-        legPhase(:,legInd(i)) = angle(hilbert(legPos(:,legInd(i)))) ...
-            .* (180/pi);
+        
+        % z-score leg position (otherwise, Hilbert transform doesn't work)
+        zscLegPos = zscore(legPos(:,legInd(i)));
+         
+        % get leg phase, in degrees
+        legPhase(:,legInd(i)) = rad2deg(angle(hilbert(zscLegPos)));
     end
 end

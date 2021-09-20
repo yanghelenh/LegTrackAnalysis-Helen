@@ -21,19 +21,28 @@
 %
 % UPDATED:
 %   10/18/20 - HHY
+%   9/20/21 - HHY - account for slope of line already being 0
 %
 function [projX, projY] = projPt2Line(slope, yInt, ptX, ptY)
+
     % slope of projection line is orthogonal
     perpSlope = -1./slope;
-    
+
     % y-intercept of orthogonal line (line goes through specified point)
     yIntNew = -perpSlope .* ptX + ptY;
-    
+
     % solve for point on line that intercects orthogonal line
     projX = (yIntNew - yInt) ./ (slope - perpSlope); 
-    % for some reason, solving for y using equation of perpendicular line
-    %  doesn't always return correct answer, likely when slope too close to
-    %  0
+    % for some reason, solving for y using equation of perpendicular
+    %  line doesn't always return correct answer, likely when slope too 
+    %  close to 0
 %     projY = perpSlope .* projX + yIntNew; 
     projY = slope .* projX + yInt;
+    
+    % for those points where slope is zero
+    zeroSlopeInd = find(slope == 0); % find indicies
+    
+    % projected points same as original points, change from NaN
+    projX(zeroSlopeInd) = ptX(zeroSlopeInd);
+    projY(zeroSlopeInd) = ptY(zeroSlopeInd);
 end
