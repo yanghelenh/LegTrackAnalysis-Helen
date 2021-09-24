@@ -88,6 +88,58 @@ trkFilePath = ['D:\WilsonLab\Dropbox (HMS)\APTlegTracking\'...
 pDataFilePath = ['D:\WilsonLab\Dropbox (HMS)\EphysAnalysis-Helen\pData\'...
     '200821_fly01_cell01_trial01.mat'];
 
+%% 201228_fly01_cell01_trial03 - mac - DNa02 left
+% quick and dirty loading for DNa02, no FicTrac
+trkFilePath = ['/Users/hyang/Dropbox (HMS)/APTlegTracking/Tracking/'...
+    '201228_fly01_cell01_trial03_legVid_resized_caLegTrack_v3_mdn.trk'];
+
+% load in raw data
+rawDataPath = ['/Users/hyang/Dropbox (HMS)/EphysDataMain_RAW/'...
+    '201228/fly01/cell01/'];
+metadataFilename = 'metaDat.mat';
+trialFilename = 'trial03.mat';
+load([rawDataPath metadataFilename], 'settings');
+load([rawDataPath trialFilename], 'inputParams', 'rawData', 'rawOutput');
+
+% preprocess data - need functions from EphysAnalysisCode-Helen
+% user DAQ
+[daqData, daqOutput, daqTime] = preprocessUserDaq(...
+    inputParams, rawData, rawOutput, settings);
+
+% ephys data
+[ephysData, ephysMeta] = preprocessEphysData(daqData, ...
+    daqOutput, daqTime, inputParams, settings);
+
+% some constants
+% threshold in 1st derivative to detect spikes
+ephysSpikes.params.dvdtThresh = 3000; 
+ephysSpikes.params.refractoryPeriod = 2/1000; % 2 ms min time b/w spikes
+ephysSpikes.params.medFiltOrder = 0.05; % 50 ms median filter to remove spikes
+
+% detect spikes
+ephysSpikes.startInd = detectSpikes(...
+    ephysData.scaledVoltage, ephysData.t, ...
+    ephysSpikes.params.dvdtThresh, ...
+    ephysSpikes.params.refractoryPeriod);
+
+% compute spike rate
+ephysSpikes.spikeRate = computeSpikeRate(...
+    ephysSpikes.startInd, ephysData.t);
+
+% get median-filtered voltage trace, no spikes
+ephysSpikes.medFiltV = filtEphysNoSpikes(...
+    ephysData.scaledVoltage, ephysData.t, ...
+    ephysSpikes.params.medFiltOrder);
+
+% copy over time vector
+ephysSpikes.t = ephysData.t;
+
+% leg data
+legVidPath = ['/Users/hyang/Dropbox (HMS)/EphysDataMain_RAW/'...
+    '201228/fly01/cell01/fly01_cell01_trial03_legVid.mp4'];
+leg = preprocessLegVid(legVidPath, daqData, daqOutput, daqTime);
+
+
 %% load in pData
 load(pDataFilePath, 'ephysData', 'ephysSpikes', 'fictrac', ...
     'fictracProc', 'fictracParams', 'leg');
@@ -1340,6 +1392,7 @@ stepDurations = zeros(size(stepInds,1), 2);
 stepVelocities = zeros(size(stepInds,1), 2);
 stepVelX = zeros(size(stepInds,1), 2);
 stepVelY = zeros(size(stepInds,1), 2);
+strideSpeed = zeros(size(stepInds,1),1);
 
 % loop through all steps, compute parameters for each half step
 for i = 1:size(stepInds, 1)
@@ -1394,7 +1447,11 @@ for i = 1:size(stepInds, 1)
     % get velocity in y for first half of step (start to mid)
     stepVelY(i,1) = (stepMidY - stepStartY) / stepDurations(i,1);
     % get velocity in y for second half step (mid to end)
-    stepVelY(i,2) = (stepEndY - stepMidY) / stepDurations(i,2);  
+    stepVelY(i,2) = (stepEndY - stepMidY) / stepDurations(i,2); 
+    
+    % stride speed
+    strideSpeed(i) = stepLengths(i,1) / ...
+        (stepDurations(i,1) + stepDurations(i,2));
 end
 
 %% histograms of step lengths
@@ -1735,36 +1792,41 @@ xlim(f1XLims);
 %% for each step, get spike rate; variable time offset
 % for each half step
 
-tDelay = -0.05; % in sec, neg delay is ephys b/f behavior
+% delays in sec, neg delay is ephys b/f behavior
+tDelay = [-0.5 -0.2 -0.1 -0.05 -0.025 0 0.025 0.05 0.1 0.2 0.5]; 
 
 % preallocate for spike rate matrix for (number of steps x 2 (for 2 half
-%  steps)
-stepSpikeRate = zeros(size(stepInds,1),2);
+%  steps) x num delays
+stepSpikeRate = zeros(size(stepInds,1),2, length(tDelay));
 
 % times when all spikes occured
 spikeTimes = ephysSpikes.t(ephysSpikes.startInd);
 
-% incorporate time offset b/w ephys and behavior
-spikeTimesDelay = spikeTimes - tDelay;
 
-% loop through all steps
-for i = 1:size(stepInds,1)
-    % get step start, mid, end times
-    stepStartT = leg.frameTimes(stepInds(i,1));
-    stepMidT = leg.frameTimes(stepInds(i,2));
-    stepEndT = leg.frameTimes(stepInds(i,3));
-    
-    % for first half step, figure out how many spikes 
-    numSpikesStartMid = sum((spikeTimesDelay >= stepStartT) &...
-        (spikeTimesDelay < stepMidT));
-    % convert to step rate
-    stepSpikeRate(i,1) = numSpikesStartMid / (stepMidT-stepStartT);
-    
-    % for second half step, figure out how many spikes 
-    numSpikesMidEnd = sum((spikeTimesDelay >= stepMidT) &...
-        (spikeTimesDelay < stepEndT));
-    % convert to step rate
-    stepSpikeRate(i,2) = numSpikesMidEnd / (stepEndT-stepMidT); 
+% loop through all time delays
+for j = 1:length(tDelay)
+    % incorporate time offset b/w ephys and behavior
+    spikeTimesDelay = spikeTimes - tDelay(j);
+
+    % loop through all steps
+    for i = 1:size(stepInds,1)
+        % get step start, mid, end times
+        stepStartT = leg.frameTimes(stepInds(i,1));
+        stepMidT = leg.frameTimes(stepInds(i,2));
+        stepEndT = leg.frameTimes(stepInds(i,3));
+
+        % for first half step, figure out how many spikes 
+        numSpikesStartMid = sum((spikeTimesDelay >= stepStartT) &...
+            (spikeTimesDelay < stepMidT));
+        % convert to step rate
+        stepSpikeRate(i,1,j) = numSpikesStartMid / (stepMidT-stepStartT);
+
+        % for second half step, figure out how many spikes 
+        numSpikesMidEnd = sum((spikeTimesDelay >= stepMidT) &...
+            (spikeTimesDelay < stepEndT));
+        % convert to step rate
+        stepSpikeRate(i,2,j) = numSpikesMidEnd / (stepEndT-stepMidT); 
+    end
 end
 
 %% for each step, get FicTrac forward, yaw, lateral velocity
@@ -1847,14 +1909,18 @@ stanceStepParams.stepVelX = groupStepParamsBySwingStance(...
     stepVelX, stepSwingStance, 1);
 stanceStepParams.stepVelY = groupStepParamsBySwingStance(...
     stepVelY, stepSwingStance, 1);
-stanceStepParams.stepSpikeRate = groupStepParamsBySwingStance(...
-    stepSpikeRate, stepSwingStance, 1);
-stanceStepParams.stepFtFwd = groupStepParamsBySwingStance(...
-    stepFtFwd, stepSwingStance, 1);
-stanceStepParams.stepFtLat = groupStepParamsBySwingStance(...
-    stepFtLat, stepSwingStance, 1);
-stanceStepParams.stepFtYaw = groupStepParamsBySwingStance(...
-    stepFtYaw, stepSwingStance, 1);
+% stanceStepParams.stepFtFwd = groupStepParamsBySwingStance(...
+%     stepFtFwd, stepSwingStance, 1);
+% stanceStepParams.stepFtLat = groupStepParamsBySwingStance(...
+%     stepFtLat, stepSwingStance, 1);
+% stanceStepParams.stepFtYaw = groupStepParamsBySwingStance(...
+%     stepFtYaw, stepSwingStance, 1);
+
+% spike rates with delays
+for i = 1:length(tDelay)
+    stanceStepParams.stepSpikeRate(:,i) = groupStepParamsBySwingStance(...
+        stepSpikeRate(:,:,i), stepSwingStance, 1);
+end
 
 % get stepInds and leg assignments (different array size than other params)
 stanceStepParams.stepInds = stepInds(stepSwingStance(:,1)==1,1:2);
@@ -1864,6 +1930,9 @@ stanceStepParams.stepInds = [stanceStepParams.stepInds; ...
 stanceStepParams.whichLeg = stepsWhichLeg(stepSwingStance(:,1)==1);
 stanceStepParams.whichLeg = [stanceStepParams.whichLeg; ...
     stepsWhichLeg(stepSwingStance(:,2)==1)];
+
+% add tDelay into struct
+stanceStepParams.tDelay = tDelay;
 
 % swing
 swingStepParams.stepLength = groupStepParamsBySwingStance(stepLengths, ...
@@ -1878,14 +1947,18 @@ swingStepParams.stepVelX = groupStepParamsBySwingStance(...
     stepVelX, stepSwingStance, -1);
 swingStepParams.stepVelY = groupStepParamsBySwingStance(...
     stepVelY, stepSwingStance, -1);
-swingStepParams.stepSpikeRate = groupStepParamsBySwingStance(...
-    stepSpikeRate, stepSwingStance, -1);
-swingStepParams.stepFtFwd = groupStepParamsBySwingStance(...
-    stepFtFwd, stepSwingStance, -1);
-swingStepParams.stepFtLat = groupStepParamsBySwingStance(...
-    stepFtLat, stepSwingStance, -1);
-swingStepParams.stepFtYaw = groupStepParamsBySwingStance(...
-    stepFtYaw, stepSwingStance, -1);
+% swingStepParams.stepFtFwd = groupStepParamsBySwingStance(...
+%     stepFtFwd, stepSwingStance, -1);
+% swingStepParams.stepFtLat = groupStepParamsBySwingStance(...
+%     stepFtLat, stepSwingStance, -1);
+% swingStepParams.stepFtYaw = groupStepParamsBySwingStance(...
+%     stepFtYaw, stepSwingStance, -1);
+
+
+for i = 1:length(tDelay)
+    swingStepParams.stepSpikeRate(:,i) = groupStepParamsBySwingStance(...
+        stepSpikeRate(:,:,i), stepSwingStance, -1);
+end
 
 swingStepParams.stepInds = stepInds(stepSwingStance(:,1)==-1,1:2);
 swingStepParams.stepInds = [swingStepParams.stepInds; ...
@@ -1895,6 +1968,7 @@ swingStepParams.whichLeg = stepsWhichLeg(stepSwingStance(:,1)==-1);
 swingStepParams.whichLeg = [swingStepParams.whichLeg; ...
     stepsWhichLeg(stepSwingStance(:,2)==-1)];
 
+swingStepParams.tDelay = tDelay;
 
 %% for each step parameter, plot scatter against spike rate
 % subplots for each leg
@@ -1925,76 +1999,199 @@ swingStepParams.whichLeg = [swingStepParams.whichLeg; ...
 % thisStepParam = stepFtLat;
 % whichParamStr = 'FicTrac Lateral Vel (mm/sec)';
 
-thisStepParam = stepFtYaw;
-whichParamStr = 'FicTrac Yaw Vel (deg/sec)';
+% thisStepParam = stepFtYaw;
+% whichParamStr = 'FicTrac Yaw Vel (deg/sec)';
 
-figure;
-suptitle(sprintf('%s, delay %d ms',whichParamStr,tDelay * 1000));
-% 
-for i = 1:length(zeroXingParams.legInd)
-    thisLeg = zeroXingParams.legInd(i);
-    % steps for this leg
-    thisLegStepParams = thisStepParam(stepsWhichLeg == thisLeg, :);
-    % ephys for steps for this leg
-    thisLegStepSpikes = stepSpikeRate(stepsWhichLeg == thisLeg, :);
+thisStepParam = strideSpeed;
+whichParamStr = 'Stride Speed (Body Lengths/s)';
+
+% loop through all delay times
+for j = 1:length(tDelay)
+    % this delay stepSpikeRate
+    thisDelayStepSpikes = stepSpikeRate(:,:,j);
     
-    % get correlation coefficients
-    corrVal = corrcoef(thisLegStepParams(:,1),thisLegStepSpikes(:,1));
-    step2Coeff = corrcoef(thisLegStepParams(:,2),thisLegStepSpikes(:,2));
-    
-    subplot(2,3,i)
-    scatter(thisLegStepParams(:,1),thisLegStepSpikes(:,1), 50, '.');
-%     hold on;
-%     scatter(thisLegStepParams(:,2),thisLegStepSpikes(:,2), 50,'.');
-    
-    title(sprintf('Leg %s, r=%0.3f, %0.3f', ...
-        zeroXingParams.legNames{i}, corrVal(1,2), ...
-        step2Coeff(1,2)));
-    
-    ylabel('Spike Rate (spikes/sec)');
+    figure('Position', [10 10 1200 900]);
+    suptitle(sprintf('%s, delay %d ms',whichParamStr,tDelay(j) * 1000));
+    % 
+    for i = 1:length(zeroXingParams.legInd)
+        thisLeg = zeroXingParams.legInd(i);
+        % steps for this leg
+        thisLegStepParams = thisStepParam(stepsWhichLeg == thisLeg, :);
+        % ephys for steps for this leg
+        thisLegStepSpikes = thisDelayStepSpikes(stepsWhichLeg == thisLeg, :);
+
+        % get correlation coefficients
+        corrVal = corrcoef(thisLegStepParams(:,1),thisLegStepSpikes(:,1));
+%         step2Coeff = corrcoef(thisLegStepParams(:,2),thisLegStepSpikes(:,2));
+
+        subplot(2,3,i)
+        scatter(thisLegStepParams(:,1),thisLegStepSpikes(:,1), 50, '.');
+    %     hold on;
+    %     scatter(thisLegStepParams(:,2),thisLegStepSpikes(:,2), 50,'.');
+
+%         title(sprintf('Leg %s, r=%0.3f, %0.3f', ...
+%             zeroXingParams.legNames{i}, corrVal(1,2), ...
+%             step2Coeff(1,2)));
+        title(sprintf('Leg %s, r=%0.3f', ...
+            zeroXingParams.legNames{i}, corrVal(1,2)));
+
+        ylabel('Spike Rate (spikes/sec)');
+    end
 end
 
 %% swing/stance sorted step params, plot scatter against spike rate
 % subplots for each leg
 
 % which parameter, comment out as needed
-% thisStepParam = stanceStepParams.stepVelocities;
-% whichParamStr = 'Stance Step Speed (body lengths/s)';
+
+% thisStepParam = wrapTo180(stanceStepParams.stepDirections+90);
+% whichParamStr = 'Stance Step Directions (deg)';
 % thisEphysSpikes = stanceStepParams.stepSpikeRate;
 % thisWhichLeg = stanceStepParams.whichLeg;
+
+% thisStepParam = stanceStepParams.stepLength;
+% whichParamStr = 'Stance Step Length (body lengths)';
+% thisEphysSpikes = stanceStepParams.stepSpikeRate;
+% thisWhichLeg = stanceStepParams.whichLeg;
+
+% thisStepParam = stanceStepParams.stepDurations;
+% whichParamStr = 'Stance Step Durations (s)';
+% thisEphysSpikes = stanceStepParams.stepSpikeRate;
+% thisWhichLeg = stanceStepParams.whichLeg;
+
+% thisStepParam = stanceStepParams.stepVelX;
+% whichParamStr = 'Stance X Velocity (body lengths/s)';
+% thisEphysSpikes = stanceStepParams.stepSpikeRate;
+% thisWhichLeg = stanceStepParams.whichLeg;
+
+
+thisStepParam = stanceStepParams.stepVelocities;
+whichParamStr = 'Stance Step Speed (body lengths/s)';
+thisEphysSpikes = stanceStepParams.stepSpikeRate;
+thisWhichLeg = stanceStepParams.whichLeg;
 
 % thisStepParam = stanceStepParams.stepFtYaw;
 % whichParamStr = 'Stance FicTrac Yaw (deg/s)';
 % thisEphysSpikes = stanceStepParams.stepSpikeRate;
 % thisWhichLeg = stanceStepParams.whichLeg;
 
-thisStepParam = stanceStepParams.stepFtFwd;
-whichParamStr = 'Stance FicTrac Fwd (mm/s)';
+% thisStepParam = stanceStepParams.stepFtFwd;
+% whichParamStr = 'Stance FicTrac Fwd (mm/s)';
+% thisEphysSpikes = stanceStepParams.stepSpikeRate;
+% thisWhichLeg = stanceStepParams.whichLeg;
+
+% loop through all tDelay
+for j = 1:length(tDelay)
+    
+    % spikes just for this delay
+    thisDelayEphysSpikes = thisEphysSpikes(:,j);
+    
+    figure('Position', [10 10 1200 900]);
+    suptitle(sprintf('%s, delay %d ms',whichParamStr,tDelay(j) * 1000));
+    % 
+    for i = 1:length(zeroXingParams.legInd)
+        thisLeg = zeroXingParams.legInd(i);
+        % steps for this leg
+        thisLegStepParams = thisStepParam(thisWhichLeg == thisLeg);
+        % ephys for steps for this leg
+        thisLegStepSpikes = thisDelayEphysSpikes(thisWhichLeg == thisLeg);
+
+        % get correlation coefficients
+        corrVal = corrcoef(thisLegStepParams,thisLegStepSpikes);
+
+        subplot(2,3,i);
+        scatter(thisLegStepParams,thisLegStepSpikes, 50, '.');
+    %     hold on;
+    %     scatter(thisLegStepParams(:,2),thisLegStepSpikes(:,2), 50,'.');
+
+        title(sprintf('Leg %s, r=%0.3f', ...
+            zeroXingParams.legNames{i}, corrVal(1,2)));
+
+        ylabel('Spike Rate (spikes/sec)');
+        
+    end
+
+end
+
+%% stance step speed plotted on same plot for legs on each side
+
+% which parameter, comment out as needed
+
+thisStepParam = stanceStepParams.stepVelocities;
+whichParamStr = 'Stance Step Speed (body lengths/s)';
 thisEphysSpikes = stanceStepParams.stepSpikeRate;
 thisWhichLeg = stanceStepParams.whichLeg;
 
-figure;
-suptitle(sprintf('%s, delay %d ms',whichParamStr,tDelay * 1000));
-% 
-for i = 1:length(zeroXingParams.legInd)
-    thisLeg = zeroXingParams.legInd(i);
-    % steps for this leg
-    thisLegStepParams = thisStepParam(thisWhichLeg == thisLeg);
-    % ephys for steps for this leg
-    thisLegStepSpikes = thisEphysSpikes(thisWhichLeg == thisLeg);
+xLimits = [0 5];
+yLimits = [0 150];
+% colormap
+colMap = lines(6);
+
+% loop through all tDelay
+for j = 4
     
-    % get correlation coefficients
-    corrVal = corrcoef(thisLegStepParams,thisLegStepSpikes);
+    % spikes just for this delay
+    thisDelayEphysSpikes = thisEphysSpikes(:,j);
     
-    subplot(2,3,i)
-    scatter(thisLegStepParams,thisLegStepSpikes, 50, '.');
-%     hold on;
-%     scatter(thisLegStepParams(:,2),thisLegStepSpikes(:,2), 50,'.');
+    figure('Position', [10 10 1000 400]);
     
-    title(sprintf('Leg %s, r=%0.3f', ...
-        zeroXingParams.legNames{i}, corrVal(1,2)));
+    % ipsi legs (right)
+    subplot(1,2,1);
     
-    ylabel('Spike Rate (spikes/sec)');
+    for i = 1:3
+        thisLeg = zeroXingParams.legInd(i);
+        % steps for this leg
+        thisLegStepParams = thisStepParam(thisWhichLeg == thisLeg);
+        % ephys for steps for this leg
+        thisLegStepSpikes = thisDelayEphysSpikes(thisWhichLeg == thisLeg);
+        
+        % remove outliers
+        [~,stepParamOutInd] = rmoutliers(thisLegStepParams);
+        stepParamNoOut = thisLegStepParams(~stepParamOutInd);
+        spikeNoOut = thisLegStepSpikes(~stepParamOutInd);
+        
+        % fit line
+        p = polyfit(stepParamNoOut, spikeNoOut, 1);
+        f = polyval(p,linspace(xLimits(1),xLimits(2)));
+
+        scatter(stepParamNoOut,spikeNoOut, 80, '.', ...
+            'MarkerEdgeColor', colMap(i,:), 'MarkerFaceColor', colMap(i,:));
+        hold on;
+        plot(linspace(xLimits(1),xLimits(2)),f, 'Color', colMap(i,:), ...
+            'LineWidth', 2);
+        legend;
+    end
+    ylim(yLimits);
+    xlim(xLimits);
+    
+    % contra legs (left)
+    subplot(1,2,2);
+    for i = 4:6
+        thisLeg = zeroXingParams.legInd(i);
+        % steps for this leg
+        thisLegStepParams = thisStepParam(thisWhichLeg == thisLeg);
+        % ephys for steps for this leg
+        thisLegStepSpikes = thisDelayEphysSpikes(thisWhichLeg == thisLeg);
+        
+        % remove outliers
+        [~,stepParamOutInd] = rmoutliers(thisLegStepParams);
+        stepParamNoOut = thisLegStepParams(~stepParamOutInd);
+        spikeNoOut = thisLegStepSpikes(~stepParamOutInd);
+        
+        % fit line
+        p = polyfit(stepParamNoOut, spikeNoOut, 1);
+        f = polyval(p,linspace(xLimits(1),xLimits(2)));
+
+        scatter(thisLegStepParams,thisLegStepSpikes, 80, '.',...
+            'MarkerEdgeColor', colMap(i,:), 'MarkerFaceColor', colMap(i,:));
+        hold on;
+        plot(linspace(xLimits(1),xLimits(2)),f, 'Color', colMap(i,:), ...
+            'LineWidth', 2);  
+        legend;
+    end
+    ylim(yLimits);
+    xlim(xLimits);
+
 end
 
 %% plot scatter with 3rd in color
@@ -2033,8 +2230,14 @@ end
 
 %% Scatterplot for two behavioral variables
 
-param1 = stepVelocities;
-param1Str = 'Step Speed (body lengths/s)';
+% param1 = stepVelocities;
+% param1Str = 'Step Speed (body lengths/s)';
+
+% param1 = stepVelX;
+% param1Str = 'Step X Velocity (body lengths/s)';
+
+param1 = stepVelY;
+param1Str = 'Step Y Velocity (body lengths/s)';
 
 % param2 = stepFtYaw;
 % param2Str = 'FicTrac Yaw Vel (deg/s)';
@@ -2054,16 +2257,19 @@ for i = 1:length(zeroXingParams.legInd)
     
     % get correlation coefficients
     corrVal = corrcoef(thisLegParam1(:,1),thisLegParam2(:,1));
-    step2Coeff = corrcoef(thisLegParam1(:,2),thisLegParam2(:,2));
+%     step2Coeff = corrcoef(thisLegParam1(:,2),thisLegParam2(:,2));
     
     subplot(2,3,i)
     scatter(thisLegParam1(:,1),thisLegParam2(:,1), 50, '.');
 %     hold on;
 %     scatter(thisLegParam1(:,2),thisLegParam2(:,2), 50,'.');
     
-    title(sprintf('Leg %s, r=%0.3f, %0.3f', ...
-        zeroXingParams.legNames{i}, corrVal(1,2), ...
-        step2Coeff(1,2)));
+%     title(sprintf('Leg %s, r=%0.3f, %0.3f', ...
+%         zeroXingParams.legNames{i}, corrVal(1,2), ...
+%         step2Coeff(1,2)));
+    
+    title(sprintf('Leg %s, r=%0.3f', ...
+        zeroXingParams.legNames{i}, corrVal(1,2)));
     
     ylabel(param2Str);
     xlabel(param1Str);
@@ -2179,7 +2385,7 @@ legPhase.l1l3 = wrapTo360(legXPhase(:, zeroXingParams.legInd(4)) - ...
 % convert phase relationships b/w legs over time to pdf
 % some constants:
 numBinsPhasePDF = 120;
-phasePDFedges = linspace(-180,180,numBinsPhasePDF + 1);
+phasePDFedges = linspace(0,360,numBinsPhasePDF + 1);
 
 % get midpoints of bins
 phasePDFbinMids = zeros(1,numBinsPhasePDF);
@@ -2255,7 +2461,7 @@ title('Leg phase relationships, all');
 
 
 figure;
-for i = 7:9
+for i = 4:6
     % for plotting, repeat 1st point at end to connect
     theta = [phasePDFbinMids phasePDFbinMids(1)];
     rho = [legPhaseMovePDF.(legPhaseFieldnames{i}) ...
@@ -2265,7 +2471,7 @@ for i = 7:9
     hold on;
 end
 
-legend(legPhaseFieldnames{7:9});
+legend(legPhaseFieldnames{4:6});
 title('Leg phase relationships, moving only');
 
 
