@@ -25,7 +25,7 @@ function pDataFilename = fromTrkGetpDataName(trkFilename, pDataFilepath)
     % part of file name we care about is stuff before 4th _ 
     %  date_fly_fov/cell_trial starts file name for both .trk file and
     %  pData file
-    trialName = extracBefore(trkFilename, unInd(4));
+    trialName = extractBefore(trkFilename, unInd(4));
     
     % find pData file with this trial name
     % get contents of pData folder

@@ -47,10 +47,15 @@ function processLegTrack()
     pDataPath = uigetdir(pwd, 'Select pData folder');
     
     % get pData file corresponding to this .trk file
+    pDataFilename = fromTrkGetpDataName(trkName, pDataPath);
     
+    % load pData
+    pDataFilePath = [pDataPath filesep pDataFilename]; % full path
+    % load
+    load(pDataFilePath, 'fictrac', 'fictracProc', 'fictracParams', 'leg');
     
     
     % preprocess .trk file - leg positions, velocities
-    legTrack = preprocessLegTrack(trkFullPath, frameTimes, ...
+    legTrack = preprocessLegTrack(trkFullPath, leg.frameTimes, ...
         refPts, smoParams);
 end

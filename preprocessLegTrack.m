@@ -55,7 +55,7 @@ function legTrack = preprocessLegTrack(trkFilepath, frameTimes, ...
     % get leg positions after alignment to fly midpoint and normalization 
     %  to body length units
     [legTrack.srnLegX, legTrack.srnLegY] = shiftRotateNormalizeLegPos(...
-        legX, legY, refPts);
+        legTrack.legX, legTrack.legY, refPts);
 
     % get leg velocities, with Gaussian process smoothing on position
     legTrack.legXVel = findLegVel(legTrack.srnLegX, smoParams);
