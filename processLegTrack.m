@@ -58,4 +58,6 @@ function processLegTrack()
     % preprocess .trk file - leg positions, velocities
     legTrack = preprocessLegTrack(trkFullPath, leg.frameTimes, ...
         refPts, smoParams);
+    
+    
 end
