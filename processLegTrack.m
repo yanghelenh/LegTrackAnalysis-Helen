@@ -34,6 +34,10 @@ function processLegTrack()
     r2LegInd = 2;
     l2LegInd = 5;
     
+    % names and indicies for legs
+    legIDs.ind = 1:6; % indicies into raw position matricies for legs
+    legIDs.names = {'R1', 'R2', 'R3', 'L1', 'L2', 'L3'};
+    
     % parameters for smoothing for determining leg velocities
     smoParams.padLen = 50; % pad length in samples
     smoParams.sigma = 10; % in samples
