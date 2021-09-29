@@ -29,10 +29,50 @@ function processLegTrack()
     refPts.midPtInd = 9;
     refPts.headPtInd = 7;
     refPts.abdPtInd = 11;
-
+    
+    % indicies for specific legs
+    r2LegInd = 2;
+    l2LegInd = 5;
+    
     % parameters for smoothing for determining leg velocities
     smoParams.padLen = 50; % pad length in samples
     smoParams.sigma = 10; % in samples
+    
+    % INITIAL PARAMETER VALUES - these change throughout this code
+    
+    % parameters - move/not move determination
+    notMoveParams.medFiltNumSamps = 10;
+    notMoveParams.zeroXVelThreshMed = 0.0004; %0.004;
+    notMoveParams.zeroXVelThresh = 0.02;
+    notMoveParams.movePosXVelThresh = 0.01;
+    notMoveParams.moveNegXVelThresh = -0.02;
+    notMoveParams.zeroYVelThreshMed = 0.004; %0.008;
+    notMoveParams.zeroYVelThresh = 0.04;
+    notMoveParams.movePosYVelThresh = 0.01;
+    notMoveParams.moveNegYVelThresh = -0.02;
+    notMoveParams.minBoutLen = 10; % in samples
+    notMoveParams.stepNegXVelThresh = - 0.035;
+    notMoveParams.maxTimeFromStep = 100; % in samples
+    % merge any not-moving bouts less than this many samples apart
+    notMoveParams.adjBoutSepInit = 50;  
+    notMoveParams.adjBoutSepEnd = 50;
+    
+    % parameters - max/min determination
+    % length of window, in frames, for moving average
+    legRevParams.movAvgWinLen = 30; 
+    % length of window, in frames, for finding max/min
+    legRevParams.maxminWinLen = 30; 
+    legRevParams.adjThresh = 4; % threshold for adjacent indicies
+    % threshold of what 1st derivative (vel) should exceed in the positive
+    %  direction for a position maximum
+    legRevParams.maxPosVelThresh = 0.0001; 
+    legRevParams.maxNegVelThresh = -0.001; % in negative direction
+    legRevParams.minPosVelThresh = 0.0001; % in pos dir, for leg pos min
+    legRevParams.minNegVelThresh = -0.001; % in neg dir, for leg pos min
+    % num of frames before and after max/min to check for velocity thresh
+    legRevParams.numNegVelFrames = 8;
+    legRevParams.numPosVelFrames = 12;
+    
     
 
     % prompt user for .trk file; defaults to folder containing trk files
@@ -54,10 +94,120 @@ function processLegTrack()
     % load
     load(pDataFilePath, 'fictrac', 'fictracProc', 'fictracParams', 'leg');
     
+    % get variables saved in pData file
+    pDatVars = whos('-file', pDataFilePath);
     
+    % convert pDatVars into cell array of just names
+    for i = 1:length(pDatVars)
+        pDatVarsNames{i} = pDatVars(i).name;
+    end
+    
+    % check if leg tracking analysis was already run on this file (leg
+    %  tracking variables exist in pData)
+    if (any(strcmpi(pDatVarsNames, 'legTrack')))
+        disp('Leg Tracking analysis run on this pData file before');
+        % ask if user wants to continue
+        contStr = input('Continue? y/n ', 's');
+        % if not, end function here
+        if (~strcmpi(contStr, 'y'))
+            disp('Ending processLegTrack');
+            return;
+        end
+    end
+        
     % preprocess .trk file - leg positions, velocities
     legTrack = preprocessLegTrack(trkFullPath, leg.frameTimes, ...
         refPts, smoParams);
     
+    % check if move/not move determined already and if yes, whether user
+    %  wants to redo it
+    if (any(strcmpi(pDatVarsNames, 'moveNotMove')))
+        disp('Moving/not moving bouts already determined');
+        % ask if user wants to rerun
+        contStr = input('Rerun moving/not moving selection? y/n ', 's');
+        % yes, rerun
+        if (strcmpi(contStr, 'y'))
     
+            % get not moving and moving indicies and bout starts/ends
+            [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
+                interactGetNotMovingInd(legTrack, notMoveParams, r2LegInd, ...
+                l2LegInd);
+            % save into moveNotMove struct
+            moveNotMove.notMoveInd = notMoveInd;
+            moveNotMove.notMoveBout = notMoveBout;
+            moveNotMove.moveInd = moveInd;
+            moveNotMove.moveBout = moveBout;
+            moveNotMove.notMoveParams = notMoveParams;
+            
+            % update pData
+            save(pDataFilePath, 'legTrack', 'moveNotMove', '-append', ...
+                '-v7.3');
+            
+        % if not rerunning, load in previous
+        else
+            disp('Loading in previous moveNotMove');
+            load(pDataFilePath, 'moveNotMove');
+        end
+    % move/not move not yet determined
+    else
+        % get not moving and moving indicies and bout starts/ends
+        [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
+            interactGetNotMovingInd(legTrack, notMoveParams, r2LegInd, ...
+            l2LegInd);
+
+        % save into moveNotMove struct
+        moveNotMove.notMoveInd = notMoveInd;
+        moveNotMove.notMoveBout = notMoveBout;
+        moveNotMove.moveInd = moveInd;
+        moveNotMove.moveBout = moveBout;
+        moveNotMove.notMoveParams = notMoveParams;
+            
+        % update pData with leg info at this point
+        save(pDataFilePath, 'legTrack', 'moveNotMove', '-append', ...
+            '-v7.3');
+    end
+    
+    
+    % get max and min points of leg position, for step determination
+    
+    % check if steps already computed
+    if (any(strcmpi(pDatVarsNames, 'legSteps')))
+        disp('Steps already computed');
+        % ask if user wants to redo
+        contStr = input('Rerun max/min selection? y/n ', 's');
+        
+        % yes, redo
+        if (strcmpi(contStr, 'y'))
+            
+            
+            
+            
+            % update pData file
+            save(pDataFilePath, 'legSteps', '-append', '-v7.3');
+            
+        % no, don't redo
+        else
+            disp('Loading in previous legSteps');
+            load(pDataFilePath, 'legSteps');
+        end
+    % steps not yet computed
+    else
+        
+        
+        % update pData file
+        save(pDataFilePath, 'legSteps', '-append', '-v7.3');
+    end
+    
+    
+    
+    % compute steps
+    
+    
+    
+    % compute step parameters
+    
+    
+    
+    % update pData file
+    save(pDataFilePath, 'legSteps', '-append', '-v7.3'); 
 end
