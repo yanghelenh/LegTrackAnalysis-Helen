@@ -128,7 +128,7 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     plot(legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,l2LegInd), ...
         '.','LineStyle','none');
     % plot shading for not moving bouts
-    patch(notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3');
+    patch(notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3);
     
     xlim([0 tRange]);
     title('L2 X position');

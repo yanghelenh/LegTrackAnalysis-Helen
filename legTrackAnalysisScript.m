@@ -273,6 +273,8 @@ figure; plot(srnLegX(:,1)); hold on; plot(r1MovAvg);
 % if index of max/min isn't the first or last index of the window, flag the
 %  window
 % find the max/min within flagged windows in raw leg position data
+% NOTE: 9/29/21 - windows after merging, start and end indicies defined
+% strangely, may be bug, see findLegReversals() for new implementation
 
 % some parameters
 movAvgWinLen = 30; % length of window, in frames, for moving average
