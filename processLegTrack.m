@@ -223,12 +223,18 @@ function processLegTrack()
     end
     
     
-    
     % compute steps
+    [stepInds, stepWhichLeg] = minMaxPosToSteps(legSteps.maxIndsAll, ...
+        legSteps.minIndsAll, legSteps.maxWhichLeg, legSteps.minWhichLeg,...
+        moveNotMove.notMoveBout, moveNotMove.moveBout);
     
+    % save into legSteps struct
+    legSteps.stepInds = stepInds;
+    legSteps.stepWhichLeg = stepWhichLeg;
     
     
     % compute step parameters
+    
     
     
     

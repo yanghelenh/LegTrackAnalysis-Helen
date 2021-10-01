@@ -44,7 +44,7 @@
 % CREATED: 9/29/21 - HHY
 %
 % UPDATED:
-%   9/30/21 - HHY
+%   10/1/21 - HHY
 %
 function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     interactGetLegReversals(legTrack, moveNotMove, legRevParams, legIDs)
@@ -106,7 +106,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     
     
     % loop through all legs
-    for i = 1%:length(legIDs.ind)
+    for i = 1:length(legIDs.ind)
         
         % initialize logical for next leg/done button press
         thisLegDone = 0;
@@ -290,6 +290,9 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         userSelVal(i).maxRmved = maxRmved;
         userSelVal(i).minAdded = minAdded;
         userSelVal(i).minRmved = minRmved;
+        
+        % close this figure
+        close(f);
         
     end
     
