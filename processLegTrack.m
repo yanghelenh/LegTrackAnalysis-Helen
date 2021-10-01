@@ -183,7 +183,17 @@ function processLegTrack()
         % yes, redo
         if (strcmpi(contStr, 'y'))
             
+            % compute max/min
+            [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
+                userSelVal] = interactGetLegReversals(legTrack, ...
+                moveNotMove, legRevParams, legIDs);
             
+            % save into legSteps struct
+            legSteps.maxIndsAll = maxIndsAll;
+            legSteps.minIndsAll = minIndsAll;
+            legSteps.maxWhichLeg = maxWhichLeg;
+            legSteps.minWhichLeg = minWhichLeg;
+            legSteps.userSelVal = userSelVal;
             
             
             % update pData file
@@ -196,7 +206,17 @@ function processLegTrack()
         end
     % steps not yet computed
     else
-        
+        % compute max/min
+        [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
+            userSelVal] = interactGetLegReversals(legTrack, ...
+            moveNotMove, legRevParams, legIDs);
+
+        % save into legSteps struct
+        legSteps.maxIndsAll = maxIndsAll;
+        legSteps.minIndsAll = minIndsAll;
+        legSteps.maxWhichLeg = maxWhichLeg;
+        legSteps.minWhichLeg = minWhichLeg;
+        legSteps.userSelVal = userSelVal;
         
         % update pData file
         save(pDataFilePath, 'legSteps', '-append', '-v7.3');

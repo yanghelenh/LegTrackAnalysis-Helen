@@ -44,7 +44,7 @@
 % CREATED: 9/29/21 - HHY
 %
 % UPDATED:
-%   9/29/21 - HHY
+%   9/30/21 - HHY
 %
 function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     interactGetLegReversals(legTrack, moveNotMove, legRevParams, legIDs)
@@ -63,11 +63,13 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     sldWidth = 300;
     numSld = length(fieldnames(legRevParams));
     sldYSpace = round((sldYPosStart - sldYPosEnd) / numSld);
+    sldTMajorStep = (tRange/xMax) * 0.9;
+    sldTMinorStep = 0.1 * sldTMajorStep;
     
     % button parameters
     btnXPosStart = 100;
     btnXSpace = 150;
-    btnYPos = 100;
+    btnYPos = 120;
     btnHeight = 20;
     btnWidth = 80;
     
@@ -94,6 +96,12 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     
     % names for all parameters in legRevParams
     lrpNames = fieldnames(legRevParams);
+    
+    % initialize maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg
+    maxIndsAll = [];
+    minIndsAll = [];
+    maxWhichLeg = [];
+    minWhichLeg = [];
     
     
     
@@ -198,7 +206,9 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         tSlider = uicontrol(f, 'Style', 'slider', 'Position', ...
             [100 200 600 20]);
         tSlider.Value = 0;
+        tSlider.SliderStep = [sldTMinorStep sldTMajorStep];
         tSlider.Callback = @updateTLim;
+         
 
             
         % sliders for adjusting each of the parameter values
@@ -225,7 +235,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         allButton = {};
         % loop through all buttons
         for j = 1:length(buttonNames)
-            allButton{j} = uicontrol(f, 'Style', 'togglebutton');
+            allButton{j} = uicontrol(f, 'Style', 'pushbutton');
             
             thisButtonXPos = btnXPosStart + btnXSpace * (j-1);
             
@@ -236,8 +246,11 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
             allButton{j}.Callback = {@manualSelect, j};  
         end
         
-        
-        
+        % text: to display which manual selection button pressed
+        msTxt = uicontrol(f, 'Style', 'text');
+        msTxt.Position = [thisButtonXPos + 200, btnYPos, 200 20];
+        msTxt.FontSize = 12;
+        msTxt.String = 'Automated Detection, use sliders';
         
         % button for next leg or to end (on last leg)
         % get string for text on this button
@@ -257,6 +270,26 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         while ~thisLegDone
             pause(0.1);
         end
+        
+        % update all return values for this leg
+
+        % return values for this, concatenate into vector for all legs
+        maxIndsAll = [maxIndsAll; maxInds];
+        minIndsAll = [minIndsAll; minInds];
+        
+        % which leg marker, generate vectors
+        thisMaxWhichLeg = ones(size(maxInds)) * legIDs.ind(i);
+        thisMinWhichLeg = ones(size(minInds)) * legIDs.ind(i);
+        % concatenate into vector for all legs
+        maxWhichLeg = [maxWhichLeg; thisMaxWhichLeg];
+        minWhichLeg = [minWhichLeg; thisMinWhichLeg];
+        
+        % update userSelVal
+        userSelVal(i).legRevParams = thisLegRevParams;
+        userSelVal(i).maxAdded = maxAdded;
+        userSelVal(i).maxRmved = maxRmved;
+        userSelVal(i).minAdded = minAdded;
+        userSelVal(i).minRmved = minRmved;
         
     end
     
@@ -321,13 +354,26 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
 
     % function for when one of the manual selection buttons is pressed
     function manualSelect(src, event, nameInd)
-        thisButton = buttonNames{nameInd}; % as string
+        thisButtonName = buttonNames{nameInd}; % as string
+        
+        % change text to display which button was pressed
+        msTxt.String = thisButtonName;
+        
+        % clear parameter sliders, text if they're still present
+        if (isvalid(allSld{1}))
+            for k = 1:length(allSld)
+                delete(allSld{k});
+            end
+            
+            % delete all text
+            cla(txtAx);
+        end
         
         % initialize logical for stopping manual selection
         selDone = 0;
         
         % initialize vector tracking indicies
-        theseInds = [];
+        theseInd = [];
         
         % ginput to get coordinates, loop until user presses keyboard key
         while ~selDone
@@ -336,6 +382,9 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
             % if user presses keyboard key (button ascii >=32), end loop
             if (thisButton >= 32)
                 selDone = 1;
+                
+                % update text 
+                msTxt.String = 'No manual selection active';
                 
                 % update vectors of max/min added/removed
                 switch thisButton
@@ -348,9 +397,6 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
                     case 'Add Min'
                         minAdded = [minAdded; theseInd];
                 end
-                
-                % unselect button
-                allButton{nameInd}.Value = allButton{nameInd}.Min;
                 
                 continue;
             end
@@ -366,32 +412,51 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
             %  axis bounds
             if ((thisX >= curXMin) && (thisX <= curXMax) && ...
                     (thisY >= yMinLim) && (thisY <= yMaxLim))
-                
                 % call to add/remove max/min, depending on which button
                 %  selected
-                switch thisButton
+                switch thisButtonName
                     case 'Delete Max'
-                        [thisInd, maxInds] = addRmvIndAtSelX(...
-                            maxInds, legTrack.t, thisX, 'remove', 'max');
+                        [thisInd, maxInds] = rmvIndAtSelX(maxInds, ...
+                            legTrack.t, thisX);
                     case 'Add Max'
-                        [thisInd, maxInds] = addRmvIndAtSelX(...
-                            maxInds, legTrack.t, thisX, 'add', 'max');
+                        [thisInd, maxInds] = addIndAtSelX(maxInds, ...
+                            legTrack.t, legTrack.srnLegX(:,thisLegInd), ...
+                            thisX, 'max');
                     case 'Delete Min'
-                        [thisInd, minInds] = addRmvIndAtSelX(...
-                            minInds, legTrack.t, thisX, 'remove', 'min');
+                        [thisInd, minInds] = rmvIndAtSelX(minInds, ...
+                            legTrack.t, thisX);
                     case 'Add Min'
-                        [thisInd, minInds] = addRmvIndAtSelX(...
-                            minInds, legTrack.t, thisX, 'add', 'min');
+                        [thisInd, minInds] = addIndAtSelX(minInds, ...
+                            legTrack.t, legTrack.srnLegX(:,thisLegInd), ...
+                            thisX, 'min'); 
                 end
                 
                 % update tracking of indices added/removed
                 theseInd = [theseInd; thisInd];
-            end
+                
+                % update max and min vals
+                maxVals = legTrack.srnLegX(maxInds, thisLegInd);
+                minVals = legTrack.srnLegX(minInds, thisLegInd);
             
-        end
-        
-        
-        
+                % update plot to add/remove this max/min        
+                cla(legPosAx);
+
+                % leg position
+                plot(legPosAx,legTrack.t, legTrack.srnLegX(:,thisLegInd));
+                hold on;
+
+                % plot max - x's 
+                plot(legPosAx,legTrack.t(maxInds), maxVals, 'x', ...
+                    'LineStyle', 'none');
+                % plot min - o's
+                plot(legPosAx,legTrack.t(minInds), minVals, 'o', ...
+                    'LineStyle', 'none');
+
+                % plot shading for not moving bouts
+                patch(legPosAx, notMovingXT, notMovingY, 'black', ...
+                    'FaceAlpha', 0.3);
+            end
+        end 
     end
 
     % function for when next leg/done button is pressed
