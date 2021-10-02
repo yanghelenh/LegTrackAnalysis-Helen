@@ -234,7 +234,15 @@ function processLegTrack()
     
     
     % compute step parameters
+    legSteps = computeStepParameters(legSteps, legTrack);
     
+    % get swing/stance
+    
+    % step parameters during swing/stance
+    
+    % swing/stance/not moving for each frame
+    
+    % leg phase
     
     
     
