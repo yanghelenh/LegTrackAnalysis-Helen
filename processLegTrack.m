@@ -81,9 +81,10 @@ function processLegTrack()
 
     % prompt user for .trk file; defaults to folder containing trk files
     disp('Select .trk file to process');
-    [trkName, trkPath] = uigetfile('*.trk', 'Select .trk file', trkPath());
+    [trkName, thisTrkPath] = uigetfile('*.trk', 'Select .trk file', ...
+        trkPath());
     % full path to .trk file
-    trkFullPath = [trkPath filesep trkName];
+    trkFullPath = [thisTrkPath filesep trkName];
     
     % find matching pData file
     % prompt user for pData folder, through GUI
@@ -144,8 +145,7 @@ function processLegTrack()
             moveNotMove.notMoveParams = notMoveParams;
             
             % update pData
-            save(pDataFilePath, 'legTrack', 'moveNotMove', '-append', ...
-                '-v7.3');
+            save(pDataFilePath, 'legTrack', 'moveNotMove', '-append');
             
         % if not rerunning, load in previous
         else
@@ -167,8 +167,7 @@ function processLegTrack()
         moveNotMove.notMoveParams = notMoveParams;
             
         % update pData with leg info at this point
-        save(pDataFilePath, 'legTrack', 'moveNotMove', '-append', ...
-            '-v7.3');
+        save(pDataFilePath, 'legTrack', 'moveNotMove', '-append');
     end
     
     
@@ -197,7 +196,7 @@ function processLegTrack()
             
             
             % update pData file
-            save(pDataFilePath, 'legSteps', '-append', '-v7.3');
+            save(pDataFilePath, 'legSteps', '-append');
             
         % no, don't redo
         else
@@ -219,7 +218,7 @@ function processLegTrack()
         legSteps.userSelVal = userSelVal;
         
         % update pData file
-        save(pDataFilePath, 'legSteps', '-append', '-v7.3');
+        save(pDataFilePath, 'legSteps', '-append');
     end
     
     
@@ -234,18 +233,42 @@ function processLegTrack()
     
     
     % compute step parameters
-    legSteps = computeStepParameters(legSteps, legTrack);
+    legSteps = computeStepParameters(legSteps, legTrack, fictracProc);
     
-    % get swing/stance
+    % get swing/stance, currently, use duration method
+    legSteps = callSwingStanceSteps(legSteps, legTrack, ...
+        'duration', fictracProc);
     
     % step parameters during swing/stance
+    [stanceStepParams, swingStepParams] = getStepParamsSwingStance(...
+        legSteps);
     
-    % swing/stance/not moving for each frame
+    % save into legSteps struct
+    legSteps.stanceStepParams = stanceStepParams;
+    legSteps.swingStepParams = swingStepParams;
     
-    % leg phase
     
+%     % swing/stance/not moving for each frame - DEBUG LATER
+%     framesSwingStance = getFrameSwingStance(legSteps, legTrack.t, ...
+%         moveNotMove.notMoveInd, legIDs);
+%     
+%     % save into legTrack struct
+%     legTrack.framesSwingStance = framesSwingStance;
+%     
+    
+%     % leg phase
+%     legPhase = getLegPhaseFromSteps(legSteps.stepInds, ...
+%         legSteps.stepWhichLeg, legTrack.srnLegX(:, legIDs.ind), ...
+%         moveNotMove.notMoveBout);
+%     
+%     % pairwise leg phase differences
+%     
+%     
+%     
+%     % save into legTrack struct
+%     legTrack.legPhase = legPhase;
     
     
     % update pData file
-    save(pDataFilePath, 'legSteps', '-append', '-v7.3'); 
+    save(pDataFilePath, 'legSteps', 'legTrack', '-append'); 
 end

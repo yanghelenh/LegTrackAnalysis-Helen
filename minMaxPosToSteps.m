@@ -94,7 +94,7 @@ function [stepInds, stepWhichLeg] = minMaxPosToSteps(maxInds, minInds, ...
         
         % index into moveBout for start point immediately preceding this
         %  maxInd
-        thisMoveStartInd = find(thisPotStart > moveBout(:,1), 1, 'last');
+        thisMoveStartInd = find(thisPotStart >= moveBout(:,1), 1, 'last');
         % frame index of move bout start
         thisMoveStart = moveBout(thisMoveStartInd, 1);
         % frame index of move bout end; paired

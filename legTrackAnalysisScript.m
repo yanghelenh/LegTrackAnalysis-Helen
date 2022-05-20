@@ -2384,6 +2384,15 @@ legPhase.l2l3 = wrapTo360(legXPhase(:, zeroXingParams.legInd(5)) - ...
 legPhase.l1l3 = wrapTo360(legXPhase(:, zeroXingParams.legInd(4)) - ...
     legXPhase(:, zeroXingParams.legInd(6)));
 
+legPhase.l1r2 = wrapTo360(legXPhase(:, zeroXingParams.legInd(4)) - ...
+    legXPhase(:, zeroXingParams.legInd(2)));
+legPhase.r2l3= wrapTo360(legXPhase(:, zeroXingParams.legInd(2)) - ...
+    legXPhase(:, zeroXingParams.legInd(6)));
+legPhase.r1l2 = wrapTo360(legXPhase(:, zeroXingParams.legInd(1)) - ...
+    legXPhase(:, zeroXingParams.legInd(5)));
+legPhase.l2r3 = wrapTo360(legXPhase(:, zeroXingParams.legInd(5)) - ...
+    legXPhase(:, zeroXingParams.legInd(3)));
+
 % convert phase relationships b/w legs over time to pdf
 % some constants:
 numBinsPhasePDF = 120;
@@ -2461,9 +2470,9 @@ end
 legend(legPhaseFieldnames);
 title('Leg phase relationships, all');
 
-
+%%
 figure;
-for i = 4:6
+for i = 10:13
     % for plotting, repeat 1st point at end to connect
     theta = [phasePDFbinMids phasePDFbinMids(1)];
     rho = [legPhaseMovePDF.(legPhaseFieldnames{i}) ...
@@ -2473,7 +2482,7 @@ for i = 4:6
     hold on;
 end
 
-legend(legPhaseFieldnames{4:6});
+legend(legPhaseFieldnames{10:13});
 title('Leg phase relationships, moving only');
 
 

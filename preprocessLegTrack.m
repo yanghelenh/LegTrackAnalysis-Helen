@@ -36,6 +36,7 @@
 %
 % UPDATED:
 %   9/24/21 - HHY
+%   5/12/22 - HHY - add code to remove outliers from leg position
 %
 function legTrack = preprocessLegTrack(trkFilepath, frameTimes, ...
     refPts, smoParams)
@@ -57,9 +58,20 @@ function legTrack = preprocessLegTrack(trkFilepath, frameTimes, ...
     [legTrack.srnLegX, legTrack.srnLegY] = shiftRotateNormalizeLegPos(...
         legTrack.legX, legTrack.legY, refPts);
 
+    % remove outliers from leg position, ones that deviate too far from
+    %  median value
+    for i = 1:legTrack.numPoints
+        legTrack.srnfLegX(:,i) = medFiltRmvOutliers(...
+            legTrack.srnLegX(:,i), smoParams.medFiltDeg, ...
+            smoParams.percntDev, smoParams.maxMinWin);
+        legTrack.srnfLegY(:,i) = medFiltRmvOutliers(...
+            legTrack.srnLegY(:,i), smoParams.medFiltDeg, ...
+            smoParams.percntDev, smoParams.maxMinWin);
+    end
+
     % get leg velocities, with Gaussian process smoothing on position
-    legTrack.legXVel = findLegVel(legTrack.srnLegX, smoParams);
-    legTrack.legYVel = findLegVel(legTrack.srnLegY, smoParams);
+    legTrack.legXVel = findLegVel(legTrack.srnfLegX, smoParams);
+    legTrack.legYVel = findLegVel(legTrack.srnfLegY, smoParams);
     
     % copy over parameter structs
     legTrack.refPts = refPts;

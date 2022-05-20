@@ -1,13 +1,14 @@
-% findFlyNotMoving.m
+% findFlyNotMovingWFt.m
 %
 % Function to find when the fly isn't moving, based on the criteria that
-%  the 2 midlegs are not moving in X and Y (velocity below threshold).
+%  the 2 midlegs are not moving in X and Y (velocity below threshold) or
+%  that the total FicTrac velocity is below a threshold.
 % Finds based on smoothed velocity below threshold and non-smoothed
 %  velocity also below (separate) threshold
 % Returns indicies of not moving times
 %
-% Replaces findFlyNotMovingMidlegsXY() and is called interactively by 
-%  interactGetNotMovingInd()
+% LATEST VERSION: replaces findFlyNotMoving() and is called
+%   interactively by interactGetNotMovingIndWFt()
 %
 % INPUTS:
 %   xVel - matrix of leg velocities in X direction
@@ -35,6 +36,7 @@
 %           samples apart initially, merge them
 %       adjBoutSepEnd - if not-moving bouts are less than this many 
 %           samples apart at the end of the analysis, merge them
+%       
 %   r2LegInd - index of right mid-leg
 %   l2LegInd - index of left mid-leg
 %
@@ -43,14 +45,12 @@
 %   notMoveStartInd - indicies of start of not moving bout
 %   notMoveEndInd - indicies of end of not moving bout
 %
-% CREATED: 9/28/21 - HHY
+% CREATED: 5/12/22 - HHY
 %
 % UPDATED:
-%   9/28/21 - HHY
-%   5/12/22 - HHY - make a version of this that incorporates FicTrac data,
-%       so this is no longer the most recent version
+%   5/12/22 - HHY
 %
-function [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMoving(...
+function [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMovingWFt(...
     xVel, yVel, notMoveParams, r2LegInd, l2LegInd)
 
     % median filter leg velocities, mid legs

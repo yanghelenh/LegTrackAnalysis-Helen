@@ -25,21 +25,36 @@
 %       stepSpeeds - step speed in xy plane (body lengths/sec)
 %       stepVelX - step velocity in x direction (body lengths/sec)
 %       stepVelY - step velocity in y direction (body lengths/sec)
+%       stepFtFwd - FicTrac forward velocity during step (mm/sec)
+%       stepFtLat - FicTrac lateral velocity during step (mm/sec)
+%       stepFtYaw - FicTrac lateral velocity during step (deg/sec)
 %
 % CREATED: 10/1/21 - HHY
 %
 % UPDATED:
-%   10/1/21 - HHY
+%   10/2/21 - HHY
 %
-function legSteps = computeStepParameters(legSteps, legTrack)
+function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     
+    % interpolate FicTrac position to leg frame times (spline)
+    interpFtFwdPos = interp1(fictrac.t, fictrac.fwdCumPos, ...
+        legTrack.t, 'spline');
+    interpFtYawPos = interp1(fictrac.t, fictrac.yawAngCumPos, ...
+        legTrack.t, 'spline');
+    interpFtLatPos = interp1(fictrac.t, fictrac.slideCumPos, ...
+        legTrack.t, 'spline');
+
     % preallocate
     stepLengths = zeros(size(legSteps.stepInds,1), 2); 
+    stepXLengths = zeros(size(legSteps.stepInds,1), 2);  
     stepDirections = zeros(size(legSteps.stepInds,1), 2);
     stepDurations = zeros(size(legSteps.stepInds,1), 2);
     stepSpeeds = zeros(size(legSteps.stepInds,1), 2);
     stepVelX = zeros(size(legSteps.stepInds,1), 2);
     stepVelY = zeros(size(legSteps.stepInds,1), 2);
+    stepFtFwd = zeros(size(legSteps.stepInds,1),2);
+    stepFtYaw = zeros(size(legSteps.stepInds,1),2);
+    stepFtLat = zeros(size(legSteps.stepInds,1),2);
     
     % loop through all steps, compute parameters for each half step
     for i = 1:size(legSteps.stepInds, 1)
@@ -61,6 +76,8 @@ function legSteps = computeStepParameters(legSteps, legTrack)
         % get Y position for step end
         stepEndY = legTrack.srnLegY(legSteps.stepInds(i,3), ...
             legSteps.stepWhichLeg(i));
+        
+        
 
         % get length of first half step (start to mid)
         stepLengths(i,1) = distBtw2Pts(stepStartX, stepStartY, ...
@@ -68,6 +85,10 @@ function legSteps = computeStepParameters(legSteps, legTrack)
         % get length of second half step (mid to end)
         stepLengths(i,2) = distBtw2Pts(stepMidX, stepMidY, stepEndX, ...
             stepEndY);
+        
+        % step X lengths
+        stepXLengths(i,1) = stepMidX - stepStartX;
+        stepXLengths(i,2) = stepEndX - stepMidX;
 
         % get direction of first half step (start to mid)
         stepDirections(i,1) = findAngle2Pts(stepStartX, stepStartY, ...
@@ -102,13 +123,59 @@ function legSteps = computeStepParameters(legSteps, legTrack)
         stepVelY(i,1) = (stepMidY - stepStartY) / stepDurations(i,1);
         % get velocity in y for second half step (mid to end)
         stepVelY(i,2) = (stepEndY - stepMidY) / stepDurations(i,2); 
+        
+        % FicTrac fwd position for step start point
+        stepStartFtFwdPos = interpFtFwdPos(legSteps.stepInds(i,1));
+        % FicTrac fwd position for step mid point
+        stepMidFtFwdPos = interpFtFwdPos(legSteps.stepInds(i,2));
+        % FicTrac fwd position for step end point
+        stepEndFtFwdPos = interpFtFwdPos(legSteps.stepInds(i,3));
+
+        % FicTrac fwd velocity, first half step
+        stepFtFwd(i,1) = (stepMidFtFwdPos-stepStartFtFwdPos) / ...
+            stepDurations(i,1);
+        % second half step
+        stepFtFwd(i,2) = (stepEndFtFwdPos - stepMidFtFwdPos) / ...
+            stepDurations(i,2);
+
+        % FicTrac yaw position for step start point
+        stepStartFtYawPos = interpFtYawPos(legSteps.stepInds(i,1));
+        % FicTrac yaw position for step mid point
+        stepMidFtYawPos = interpFtYawPos(legSteps.stepInds(i,2));
+        % FicTrac yaw position for step end point
+        stepEndFtYawPos = interpFtYawPos(legSteps.stepInds(i,3));
+
+        % FicTrac yaw velocity, first half step
+        stepFtYaw(i,1) = (stepMidFtYawPos-stepStartFtYawPos) / ...
+            stepDurations(i,1);
+        % second half step
+        stepFtYaw(i,2) = (stepEndFtYawPos - stepMidFtYawPos) / ...
+            stepDurations(i,2);
+
+        % FicTrac lat position for step start point
+        stepStartFtLatPos = interpFtLatPos(legSteps.stepInds(i,1));
+        % FicTrac lat position for step mid point
+        stepMidFtLatPos = interpFtLatPos(legSteps.stepInds(i,2));
+        % FicTrac lat position for step end point
+        stepEndFtLatPos = interpFtLatPos(legSteps.stepInds(i,3));
+
+        % FicTrac lat velocity, first half step
+        stepFtLat(i,1) = (stepMidFtLatPos-stepStartFtLatPos) / ...
+            stepDurations(i,1);
+        % second half step
+        stepFtLat(i,2) = (stepEndFtLatPos - stepMidFtLatPos) / ...
+            stepDurations(i,2);
     end
     
     % add these parameters to legSteps struct
     legSteps.stepLengths = stepLengths;
+    legSteps.stepXLengths = stepXLengths;
     legSteps.stepDirections = stepDirections;
     legSteps.stepDurations = stepDurations;
     legSteps.stepSpeeds = stepSpeeds;
     legSteps.stepVelX = stepVelX;
     legSteps.stepVelY = stepVelY;
+    legSteps.stepFtFwd = stepFtFwd;
+    legSteps.stepFtLat = stepFtLat;
+    legSteps.stepFtYaw = stepFtYaw;
 end

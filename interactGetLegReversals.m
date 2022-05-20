@@ -108,6 +108,8 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     % loop through all legs
     for i = 1:length(legIDs.ind)
         
+        global selDone
+        
         % initialize logical for next leg/done button press
         thisLegDone = 0;
         
@@ -357,6 +359,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
 
     % function for when one of the manual selection buttons is pressed
     function manualSelect(src, event, nameInd)
+        selDone = 1;
         thisButtonName = buttonNames{nameInd}; % as string
         
         % change text to display which button was pressed
