@@ -14,6 +14,8 @@
 %       trials into
 %   repsOptoTimes - cell array of size # NDs x # durations, to keep
 %       track of opto stim start times for each trial, to append into
+%   repsPDatNames - cell array of size # NDs x # durations, to keep track of
+%       pData name for each rep, to append into
 %   behVar - behavior variable values
 %   t - time for behVar
 %   opto - struct of opto stimulation data
@@ -21,6 +23,7 @@
 %   durs - vector of all durations of stimulation
 %   bwStimDur - scalar value of time between stimulations to consider, in
 %       seconds, rep will be stimulation plus this time before and after
+%   pDataName - name of pData file for this trial
 %   norm2StimStart - logical for whether to normalize to value at
 %       stimulation start
 %
@@ -28,6 +31,8 @@
 %   reps - same cell array as inputs, with additional reps added
 %   repsOptoTimes - same cell array as inputs, with additional opto
 %       stim start times added
+%   repsPdatName - same cell array as inputs, with additional pData names
+%       for each opto stim added
 %   durTs - cell array of same size as durs, with time at each sample point
 %       for each duration; stimulation starts at 0 (in sec)
 %
@@ -40,12 +45,13 @@
 %       stimulation start
 %   5/18/22 - HHY - remove portion that removes trials with NaNs to
 %       preserve rep indexing b/w FicTrac and leg tracking
-%   5/19/22 - HHY add variable repsOptoStartTime to keep track of
+%   5/19/22 - HHY - add variable repsOptoStartTime to keep track of
 %       optogenetic stimulation start times for each rep
+%   5/20/22 - HHY - add tracking of pData file name
 %
-function [reps, repsOptoTimes, durTs] = extractTrialsOpto(reps, ...
-    repsOptoTimes, behVar, t, opto, NDs, durs, bwStimDur, ...
-    norm2StimStart)
+function [reps, repsOptoTimes, repsPDatNames, durTs] = extractTrialsOpto(...
+    reps, repsOptoTimes, repsPDatNames, behVar, t, opto, NDs, durs, ...
+    bwStimDur, pDataName, norm2StimStart)
 
     % check that behVar is column vector; if not, make it so
     if (isrow(behVar))
@@ -138,5 +144,8 @@ function [reps, repsOptoTimes, durTs] = extractTrialsOpto(reps, ...
         repsOptoTimes{thisNDInd,thisDurInd} = [...
             repsOptoTimes{thisNDInd,thisDurInd}; ...
             opto.stimStartTimes(i)];
+
+        % append this rep pData name to appropriate cell array
+        repsPDatNames{thisNDInd,thisDurInd}{end + 1} = pDataName;
     end
 end
