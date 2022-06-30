@@ -1,12 +1,17 @@
 % interactGetNotMovingIndWFt.m
 %
 % Function for selecting not-moving times. 
-% Brings up GUI with plot of mid-leg positions, shaded regions of not 
-%  moving & red dots on not-moving, and sliders to adjust all parameters 
-%  that determine not-moving portions.
+% Brings up GUI with plot of mid-leg positions and FicTrac total speed (as
+%  plot over time and as histogram)
+%  Shaded regions of not moving & red dots on not-moving (for leg position)
+%  and sliders to adjust all not moving parameters that determine 
+%  not-moving portions.
+% Adaptation of interactGetNotMovingInd() and determineMoveThresh()
 %
 % INPUTS:
 %   legTrack - struct of leg tracking data, output of preprocessLegTrack
+%   fictracProc - struct of processed fictrac data, output of
+%       filtFictrac_all
 %   notMoveParams - struct of initial values of parameters
 %       medFiltNumSamps - number of samples for median filtering leg
 %           velocity
@@ -30,6 +35,12 @@
 %           samples apart initially, merge them
 %       adjBoutSepEnd - if not-moving bouts are less than this many 
 %           samples apart at the end of the analysis, merge them
+%   ftNotMoveParams - struct of initial values of parameters, for fictrac
+%       ftTotSpdThresh - threshold on smoothed total speed, in /s
+%       ftMinBoutLen - minimum bout length of movement or stopping, in
+%           seconds
+%       sigma - standard deviation of Gaussian kernel used to smooth
+%           velocity, in seconds
 %   r2LegInd - index of right mid-leg
 %   l2LegInd - index of left mid-leg
 %
@@ -42,13 +53,14 @@
 %       indicies
 %   notMoveParams - struct of final values of parameters
 %
-% CREATED: 5/12/22 - HHY
+% CREATED: 6/30/22 - HHY
 %
 % UPDATED:
-%   5/12/22 - HHY
+%   6/30/22 - HHY
 %
 function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
-    interactGetNotMovingIndWFt(legTrack, notMoveParams, r2LegInd, l2LegInd)
+    interactGetNotMovingIndWFt(legTrack, fictracProc, notMoveParams, ...
+    ftNotMoveParams, r2LegInd, l2LegInd)
 
     % some parameters
     tRange = 30; % sec, amount of data to display
@@ -57,10 +69,11 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     % slider parameters
     sldXPos = 1200;
     sldYPosStart = 850;
-    sldYPosEnd = 50;
+    sldYPosEnd = 200;
     sldHeight = 20;
     sldWidth = 300;
-    numSld = length(fieldnames(notMoveParams));
+    numSld = length(fieldnames(notMoveParams)) + ...
+        length(fieldnames(ftNotMoveParams)) - 1;
     sldYSpace = round((sldYPosStart - sldYPosEnd) / numSld);
     
     % ranges for all notMoveParams
@@ -84,6 +97,37 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     
     % remember inital parameters
     initNotMoveParams = notMoveParams;
+    initFTnotMoveParams = ftNotMoveParams;
+
+    % smooth FicTrac total speed again
+    % interframe interval for fictrac
+    ifi = median(diff(fictracProc.t));
+    ftSampRate = 1/ifi; % sample rate for fictrac
+
+    % smoothing parameters
+    sigmaSamp = round(ftNotMoveParams.sigma * ftSampRate);
+    padLen = 3 * sigmaSamp; % pad length, should be longer than sigma
+
+    % for computing histogram, remove when
+    %  FicTrac dropped as well as sigmaSamp from edges
+    validInd = 1:length(fictracProc.totSpd);
+    validInd(fictracProc.dropInd) = [];
+    validInd = validInd(sigmaSamp:(end-sigmaSamp));
+
+    % normalize total speed
+    maxSpd = max(fictracProc.totSpd(validInd));
+    
+    totSpdNorm = fictracProc.totSpd ./ maxSpd;
+
+    % Gaussian process smooth normalized total speed
+    smoTotSpdNorm = gaussSmooth(totSpdNorm,padLen, sigmaSamp);
+
+    % ranges for FicTrac not move parameters
+    nmpRanges.ftTotSpdThresh = [0 maxSpd];
+    nmpRanges.ftMinBoutLen = [0 10];
+
+
+
 
     % get not moving calls with initial parameters
     [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMoving(...

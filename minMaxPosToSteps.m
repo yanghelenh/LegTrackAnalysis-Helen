@@ -60,7 +60,7 @@ function [stepInds, stepWhichLeg] = minMaxPosToSteps(maxInds, minInds, ...
         thisLegMinInds = minInds(minWhichLeg == thisLeg);
         
         % index of this potential start point into thisLegMaxInds
-        thisPotStartInd = find(thisLegMaxInds == thisPotStart);
+        thisPotStartInd = find(thisLegMaxInds == thisPotStart,1,'first');
         
         
         % check if this maxInd is within a not moving bout (shouldn't be,

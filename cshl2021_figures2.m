@@ -44,7 +44,7 @@ for j = 1:length(tDelay)
     thisDelayStepSpikes = stepSpikeRate(:,:,j);
     
     figure('Position', [10 10 1200 900]);
-    suptitle(sprintf('%s, delay %d ms',whichParamStr,tDelay(j) * 1000));
+    sgtitle(sprintf('%s, delay %d ms',whichParamStr,tDelay(j) * 1000));
     % 
     for i = 1:length(legIDs.ind)
         thisLeg = legIDs.ind(i);
