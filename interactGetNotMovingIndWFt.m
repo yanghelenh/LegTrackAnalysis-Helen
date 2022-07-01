@@ -126,13 +126,19 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     nmpRanges.ftTotSpdThresh = [0 maxSpd];
     nmpRanges.ftMinBoutLen = [0 10];
 
+    % convert min bout length in sec to samples
+    ftMinBoutLenSamp = ftNotMoveParams.ftMinBoutLen * ftSampRate;
 
 
-
-    % get not moving calls with initial parameters
+    % get not moving calls with initial leg parameters
     [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMoving(...
         legTrack.legXVel, legTrack.legYVel, notMoveParams, r2LegInd, ...
         l2LegInd);
+
+    % get not moving calls with initial FicTrac parameters
+    [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+        findFlyNotMovingFt(smoTotSpdNorm, ...
+        ftNotMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
     
     % get shading for not moving
     notMovingX = [notMoveStartInd'; notMoveStartInd'; notMoveEndInd'; ...
