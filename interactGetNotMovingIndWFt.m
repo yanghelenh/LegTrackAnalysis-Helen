@@ -35,10 +35,11 @@
 %           samples apart initially, merge them
 %       adjBoutSepEnd - if not-moving bouts are less than this many 
 %           samples apart at the end of the analysis, merge them
-%   ftNotMoveParams - struct of initial values of parameters, for fictrac
-%       ftTotSpdThresh - threshold on smoothed total speed, in /s
+%       ftTotSpdThresh - threshold on smoothed total speed, normalized
 %       ftMinBoutLen - minimum bout length of movement or stopping, in
 %           seconds
+%       cmbMethod - method for combining leg and FicTrac calls, string of
+%           'union', 'intersect', 'legOnly', 'fictracOnly'
 %       sigma - standard deviation of Gaussian kernel used to smooth
 %           velocity, in seconds
 %   r2LegInd - index of right mid-leg
@@ -56,11 +57,18 @@
 % CREATED: 6/30/22 - HHY
 %
 % UPDATED:
-%   6/30/22 - HHY
+%   7/1/22 - HHY
 %
-function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
+function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
+    ftNotMoveInd, ftNotMoveBout, ftMoveInd, ftMoveBout, notMoveParams] = ...
     interactGetNotMovingIndWFt(legTrack, fictracProc, notMoveParams, ...
-    ftNotMoveParams, r2LegInd, l2LegInd)
+    r2LegInd, l2LegInd)
+
+    % list of notMoveParams that aren't slider options
+    nonSliderParams = {'cmbMethod','sigma'};
+
+    % list of combined methods options
+    cmbMetOptions = {'intersect', 'union', 'legOnly', 'fictracOnly'};
 
     % some parameters
     tRange = 30; % sec, amount of data to display
@@ -72,8 +80,7 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     sldYPosEnd = 200;
     sldHeight = 20;
     sldWidth = 300;
-    numSld = length(fieldnames(notMoveParams)) + ...
-        length(fieldnames(ftNotMoveParams)) - 1;
+    numSld = length(fieldnames(notMoveParams)) - length(nonSliderParams);
     sldYSpace = round((sldYPosStart - sldYPosEnd) / numSld);
     
     % ranges for all notMoveParams
@@ -97,7 +104,6 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     
     % remember inital parameters
     initNotMoveParams = notMoveParams;
-    initFTnotMoveParams = ftNotMoveParams;
 
     % smooth FicTrac total speed again
     % interframe interval for fictrac
@@ -105,7 +111,7 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     ftSampRate = 1/ifi; % sample rate for fictrac
 
     % smoothing parameters
-    sigmaSamp = round(ftNotMoveParams.sigma * ftSampRate);
+    sigmaSamp = round(notMoveParams.sigma * ftSampRate);
     padLen = 3 * sigmaSamp; % pad length, should be longer than sigma
 
     % for computing histogram, remove when
@@ -123,30 +129,45 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     smoTotSpdNorm = gaussSmooth(totSpdNorm,padLen, sigmaSamp);
 
     % ranges for FicTrac not move parameters
-    nmpRanges.ftTotSpdThresh = [0 maxSpd];
+    nmpRanges.ftTotSpdThresh = [0 1];
     nmpRanges.ftMinBoutLen = [0 10];
 
     % convert min bout length in sec to samples
-    ftMinBoutLenSamp = ftNotMoveParams.ftMinBoutLen * ftSampRate;
+    ftMinBoutLenSamp = notMoveParams.ftMinBoutLen * ftSampRate;
 
 
     % get not moving calls with initial leg parameters
-    [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMoving(...
+    [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd] = findFlyNotMoving(...
         legTrack.legXVel, legTrack.legYVel, notMoveParams, r2LegInd, ...
         l2LegInd);
 
     % get not moving calls with initial FicTrac parameters
     [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
         findFlyNotMovingFt(smoTotSpdNorm, ...
-        ftNotMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+        notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+
+    % get not moving, combined b/w leg and FicTrac calls
+    [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
+        ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+        findLegFtCmbNotMove(legNotMoveStartInd, legNotMoveEndInd, ...
+        legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
+        notMoveParams.cmbMethod);
     
-    % get shading for not moving
-    notMovingX = [notMoveStartInd'; notMoveStartInd'; notMoveEndInd'; ...
-        notMoveEndInd'];
-    notMovingXT = legTrack.t(notMovingX);
-    y0 = ones(size(notMoveStartInd)) * -0.6;
-    y1 = ones(size(notMoveStartInd)) * 0.6;
-    notMovingY = [y0'; y1'; y1'; y0'];
+    % get shading for not moving, for leg
+    legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
+        legNotMoveEndInd; legNotMoveEndInd];
+    legNotMovingXT = legTrack.t(legNotMovingX);
+    legY0 = ones(size(legNotMoveStartInd)) * -0.6;
+    legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+    legNotMovingY = [legY0; legY1; legY1; legY0];
+
+    % get shading for not moving, for FicTrac
+    ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
+        ftNotMoveEndInd; ftNotMoveEndInd];
+    ftNotMovingXT = fictracProc.t(ftNotMovingX);
+    ftY0 = zeros(size(ftNotMoveStartInd));
+    ftY1 = ones(size(ftNotMoveStartInd));
+    ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
     
     
     % initialize figure
@@ -154,15 +175,15 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
 
     
     % plot right leg
-    r2Ax = subplot('Position', [0.05 0.65 0.6 0.3]);
+    r2Ax = subplot('Position', [0.05 0.75 0.6 0.2]);
     plot(legTrack.t, legTrack.srnLegX(:,r2LegInd));
     hold on;
     
     % plot dots for all not move ind
-    plot(legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,r2LegInd), ...
+    plot(legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
         '.','LineStyle','none');
     % plot shading for not moving bouts
-    patch(notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3');
+    patch(legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
     
     xlim([0 tRange]);
     title('R2 X position');
@@ -170,20 +191,30 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     
     
     % plot left leg
-    l2Ax = subplot('Position', [0.05 0.25 0.6 0.3]);
+    l2Ax = subplot('Position', [0.05 0.45 0.6 0.2]);
     plot(legTrack.t, legTrack.srnLegX(:,l2LegInd));
     hold on;
     
     % plot dots for all not move ind
-    plot(legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,l2LegInd), ...
+    plot(legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
         '.','LineStyle','none');
     % plot shading for not moving bouts
-    patch(notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3);
+    patch(legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3);
     
     xlim([0 tRange]);
     title('L2 X position');
     xlabel('Time (s)');
-    
+
+    % plot FicTrac smoothed total speed
+    ftAx = subplot('Position', [0.05 0.15 0.6 0.2]);
+    plot(fictracProc.t, smoTotSpdNorm);
+    hold on;
+    % plot shading for not moving bouts
+    patch(ftNotMovingXT, ftNotMovingY, 'black','FaceAlpha',0.3);
+
+    xlim([0 tRange]);
+    title('FicTrac Smoothed, Normalized Total Speed');
+    xlabel('Time(s)');
     
     % link axes for left and right legs
     linkaxes([r2Ax l2Ax], 'xy');
@@ -191,31 +222,37 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     
     % get all notMoveParam names
     nmpNames = fieldnames(notMoveParams);
-    
-    
+    % get all slider names
+    sldNames = nmpNames;
+    % loop through all names to remove
+    for i = 1:length(nonSliderParams)
+        isNonSlider = strcmp(nonSliderParams{i},sldNames);
+        sldNames(isNonSlider) = [];
+    end
+
     % text for names of parameter sliders
     % invisible axes for text
     txtAx = axes('Position',[0 0 1 1], 'Visible', 'off');
     set(gcf, 'CurrentAxes', txtAx);
-    for i = 1:length(nmpNames)
+    for i = 1:length(sldNames)
         thisSldYPos = sldYPosStart - sldYSpace * (i - 1);
         
-        text(sldXPos - 120, thisSldYPos + 10, nmpNames{i}, ...
+        text(sldXPos - 120, thisSldYPos + 10, sldNames{i}, ...
              'Units', 'pixels', 'FontSize', 12);
     end
     % text for values of parameter sliders
     allTxtH = {}; % handles to text obj
-    for i = 1:length(nmpNames)
+    for i = 1:length(sldNames)
         thisSldYPos = sldYPosStart - sldYSpace * (i - 1);
         
-        thisDispVal = num2str(notMoveParams.(nmpNames{i}));
+        thisDispVal = num2str(notMoveParams.(sldNames{i}));
         
         allTxtH{i} = text(sldXPos + 320, thisSldYPos + 10, thisDispVal, ...
              'Units', 'pixels', 'FontSize', 12);
     end
     
     % slider adjusting view of leg positions
-    tSlider = uicontrol(f, 'Style', 'slider', 'Position', [100 150 600 20]);
+    tSlider = uicontrol(f, 'Style', 'slider', 'Position', [100 50 600 20]);
     tSlider.Value = 0;
     tSlider.Callback = @updateTLim;
     
@@ -228,33 +265,131 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
         xlim(l2Ax, ...
             [tSlider.Value * (xMax-tRange),...
             tSlider.Value * (xMax-tRange) + tRange]);
+        xlim(ftAx, ...
+            [tSlider.Value * (xMax-tRange),...
+            tSlider.Value * (xMax-tRange) + tRange]);
     end
+
+    % radio buttons for selecting method of combining FicTrac and leg not
+    %  move methods
+    cmbRadioButton = uibuttongroup(f,'Visible','off','Position', ...
+        [0.75 0.1 0.15 0.1], 'SelectionChangedFcn',@cmbButtonSelection);
+    cmbButtons = {};
+    cmbButtons{1} = uicontrol(cmbRadioButton, 'Style', 'radiobutton',...
+        'String',cmbMetOptions{1},'Position',[10 60 100 30],...
+        'HandleVisibility','off');
+    cmbButtons{2} = uicontrol(cmbRadioButton, 'Style', 'radiobutton',...
+        'String',cmbMetOptions{2},'Position',[130 60 100 30],...
+        'HandleVisibility','off');
+    cmbButtons{3} = uicontrol(cmbRadioButton, 'Style', 'radiobutton',...
+        'String',cmbMetOptions{3},'Position',[10 10 100 30],...
+        'HandleVisibility','off');
+    cmbButtons{4} = uicontrol(cmbRadioButton, 'Style', 'radiobutton',...
+        'String',cmbMetOptions{4},'Position',[130 10 100 30],...
+        'HandleVisibility','off');
+    % get current method, as index
+    currCmbMethodInd = find(strcmp(notMoveParams.cmbMethod,cmbMetOptions));
+    % set radio button value to current one
+    cmbRadioButton.SelectedObject = cmbButtons{currCmbMethodInd};
+    cmbRadioButton.Visible = 'on';
     
+
+    % function for updating the figure, notMoveParams, notMove indices when
+    %  new radio button selected
+    function cmbButtonSelection(src, event)
+        % get new selection value
+        selMethod = event.NewValue.String;
+
+        % change parameter value
+        notMoveParams.cmbMethod = selMethod;
+
+        % get not moving calls with initial leg parameters
+        [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd] = findFlyNotMoving(...
+            legTrack.legXVel, legTrack.legYVel, notMoveParams, r2LegInd, ...
+            l2LegInd);
+    
+        % get not moving calls with initial FicTrac parameters
+        [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+            findFlyNotMovingFt(smoTotSpdNorm, ...
+            notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+
+        % get not moving, combined b/w leg and FicTrac calls
+        [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
+            ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+            findLegFtCmbNotMove(legNotMoveStartInd, legNotMoveEndInd, ...
+            legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
+            notMoveParams.cmbMethod);
+        
+        % get shading for not moving, for leg
+        legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
+            legNotMoveEndInd; legNotMoveEndInd];
+        legNotMovingXT = legTrack.t(legNotMovingX);
+        legY0 = ones(size(legNotMoveStartInd)) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+        legNotMovingY = [legY0; legY1; legY1; legY0];
+    
+        % get shading for not moving, for FicTrac
+        ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
+            ftNotMoveEndInd; ftNotMoveEndInd];
+        ftNotMovingXT = fictracProc.t(ftNotMovingX);
+        ftY0 = zeros(size(ftNotMoveStartInd));
+        ftY1 = ones(size(ftNotMoveStartInd));
+        ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
+        
+        % plot right leg
+        cla(r2Ax);
+        plot(r2Ax,legTrack.t, legTrack.srnLegX(:,r2LegInd));
+
+        % plot dots for all not move ind
+        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
+            '.','LineStyle','none');
+        % plot shading for not moving bouts
+        patch(r2Ax, legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
+
+
+        % plot left leg
+        cla(l2Ax);
+        plot(l2Ax, legTrack.t, legTrack.srnLegX(:,l2LegInd));
+
+        % plot dots for all not move ind
+        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
+            '.','LineStyle','none');
+        % plot shading for not moving bouts
+        patch(l2Ax,legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
+
+        % plot FicTrac
+        cla(ftAx);
+        plot(ftAx, fictracProc.t, smoTotSpdNorm);
+        hold on;
+        % plot shading for not moving bouts
+        patch(ftAx, ftNotMovingXT, ftNotMovingY, 'black','FaceAlpha',0.3);
+
+    end
     
     % sliders for adjusting each of the parameter values
     % initialize cell array for slider objects
     allSld = {};
     % loop through all parameters, creating sliders
-    for i = 1:length(nmpNames)
+    for i = 1:length(sldNames)
         allSld{i} = uicontrol(f, 'Style', 'slider');
         
         thisSldYPos = sldYPosStart - sldYSpace * (i - 1);
         
         allSld{i}.Position = [sldXPos thisSldYPos sldWidth sldHeight];
         
-        allSld{i}.Value = notMoveParams.(nmpNames{i});
-        thisParamRange = nmpRanges.(nmpNames{i});
+        allSld{i}.Value = notMoveParams.(sldNames{i});
+        thisParamRange = nmpRanges.(sldNames{i});
         allSld{i}.Max = thisParamRange(2);
         allSld{i}.Min = thisParamRange(1);
         allSld{i}.Callback = {@updateGraph, i};  
     end
     
-    % function for updating the figure, notMoveParams, notMove indicies
+    % function for updating the figure, notMoveParams, notMove indices
     %  every time a slider is moved
     function updateGraph(src, event, nameInd)
         
         % for those parameters that must be integers, round slider value
-        switch nmpNames{nameInd}
+        switch sldNames{nameInd}
             case {'medFiltNumSamps', 'minBoutLen', 'maxTimeFromStep', ...
                     'adjBoutSepInit', 'adjBoutSepEnd'}
                 thisVal = round(allSld{nameInd}.Value);
@@ -263,30 +398,50 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
         end
 
         % change the apppropriate parameter value in notMoveParams
-        notMoveParams.(nmpNames{nameInd}) = thisVal;
+        notMoveParams.(sldNames{nameInd}) = thisVal;
         
-        % find new not moving regions
-        [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMoving(...
+        % get not moving calls with initial leg parameters
+        [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd] = findFlyNotMoving(...
             legTrack.legXVel, legTrack.legYVel, notMoveParams, r2LegInd, ...
             l2LegInd);
+    
+        % get not moving calls with initial FicTrac parameters
+        [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+            findFlyNotMovingFt(smoTotSpdNorm, ...
+            notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+    
+        % get not moving, combined b/w leg and FicTrac calls
+        [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
+            ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+            findLegFtCmbNotMove(legNotMoveStartInd, legNotMoveEndInd, ...
+            legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
+            notMoveParams.cmbMethod);
         
-        % update patches
-        notMovingX = [notMoveStartInd'; notMoveStartInd'; notMoveEndInd'; ...
-            notMoveEndInd'];
-        notMovingXT = legTrack.t(notMovingX);
-        y0 = ones(size(notMoveStartInd)) * -0.6;
-        y1 = ones(size(notMoveStartInd)) * 0.6;
-        notMovingY = [y0'; y1'; y1'; y0'];
+        % get shading for not moving, for leg
+        legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
+            legNotMoveEndInd; legNotMoveEndInd];
+        legNotMovingXT = legTrack.t(legNotMovingX);
+        legY0 = ones(size(legNotMoveStartInd)) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+        legNotMovingY = [legY0; legY1; legY1; legY0];
+    
+        % get shading for not moving, for FicTrac
+        ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
+            ftNotMoveEndInd; ftNotMoveEndInd];
+        ftNotMovingXT = fictracProc.t(ftNotMovingX);
+        ftY0 = zeros(size(ftNotMoveStartInd));
+        ftY1 = ones(size(ftNotMoveStartInd));
+        ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
         
         % plot right leg
         cla(r2Ax);
         plot(r2Ax,legTrack.t, legTrack.srnLegX(:,r2LegInd));
 
         % plot dots for all not move ind
-        plot(r2Ax,legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,r2LegInd), ...
+        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
-        patch(r2Ax, notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3');
+        patch(r2Ax, legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
 
 
         % plot left leg
@@ -294,10 +449,17 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
         plot(l2Ax, legTrack.t, legTrack.srnLegX(:,l2LegInd));
 
         % plot dots for all not move ind
-        plot(l2Ax,legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,l2LegInd), ...
+        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
-        patch(l2Ax,notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3');
+        patch(l2Ax,legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
+
+        % plot FicTrac
+        cla(ftAx);
+        plot(ftAx, fictracProc.t, smoTotSpdNorm);
+        hold on;
+        % plot shading for not moving bouts
+        patch(ftAx, ftNotMovingXT, ftNotMovingY, 'black','FaceAlpha',0.3);
         
         % update display value around slider
         allTxtH{nameInd}.String = num2str(thisVal);
@@ -312,35 +474,61 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
     function resetPushed(src, event)
         notMoveParams = initNotMoveParams;
         
-        % find new not moving regions
-        [zeroVelInd, notMoveStartInd, notMoveEndInd] = findFlyNotMoving(...
+        % get not moving calls with initial leg parameters
+        [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd] = findFlyNotMoving(...
             legTrack.legXVel, legTrack.legYVel, notMoveParams, r2LegInd, ...
             l2LegInd);
+    
+        % get not moving calls with initial FicTrac parameters
+        [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+            findFlyNotMovingFt(smoTotSpdNorm, ...
+            notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+    
+        % get not moving, combined b/w leg and FicTrac calls
+        [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
+            ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
+            findLegFtCmbNotMove(legNotMoveStartInd, legNotMoveEndInd, ...
+            legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
+            notMoveParams.cmbMethod);
         
         % update all slider values
-        for j = 1:length(nmpNames)
-            allSld{j}.Value = notMoveParams.(nmpNames{j});
-            allTxtH{j}.String = num2str(notMoveParams.(nmpNames{j}));
+        for j = 1:length(sldNames)
+            allSld{j}.Value = notMoveParams.(sldNames{j});
+            allTxtH{j}.String = num2str(notMoveParams.(sldNames{j}));
         end
+
+        % update radio buttons
+        metButInd = find(strcmp(notMoveParams.cmbMethod,cmbMetOptions));
+        % set radio button value to current one
+        cmbRadioButton.SelectedObject = cmbButtons{metButInd};
         
         % update plot
         % update patches
-        notMovingX = [notMoveStartInd'; notMoveStartInd'; notMoveEndInd'; ...
-            notMoveEndInd'];
-        notMovingXT = legTrack.t(notMovingX);
-        y0 = ones(size(notMoveStartInd)) * -0.6;
-        y1 = ones(size(notMoveStartInd)) * 0.6;
-        notMovingY = [y0'; y1'; y1'; y0'];
+        % get shading for not moving, for leg
+        legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
+            legNotMoveEndInd; legNotMoveEndInd];
+        legNotMovingXT = legTrack.t(legNotMovingX);
+        legY0 = ones(size(legNotMoveStartInd)) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+        legNotMovingY = [legY0; legY1; legY1; legY0];
+    
+        % get shading for not moving, for FicTrac
+        ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
+            ftNotMoveEndInd; ftNotMoveEndInd];
+        ftNotMovingXT = fictracProc.t(ftNotMovingX);
+        ftY0 = zeros(size(ftNotMoveStartInd));
+        ftY1 = ones(size(ftNotMoveStartInd));
+        ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
         
         % plot right leg
         cla(r2Ax);
         plot(r2Ax,legTrack.t, legTrack.srnLegX(:,r2LegInd));
 
         % plot dots for all not move ind
-        plot(r2Ax,legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,r2LegInd), ...
+        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
-        patch(r2Ax, notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3');
+        patch(r2Ax, legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
 
 
         % plot left leg
@@ -348,10 +536,17 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
         plot(l2Ax, legTrack.t, legTrack.srnLegX(:,l2LegInd));
 
         % plot dots for all not move ind
-        plot(l2Ax,legTrack.t(zeroVelInd), legTrack.srnLegX(zeroVelInd,l2LegInd), ...
+        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
-        patch(l2Ax,notMovingXT, notMovingY, 'black', 'FaceAlpha', 0.3');
+        patch(l2Ax,legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
+
+        % plot FicTrac
+        cla(ftAx);
+        plot(ftAx, fictracProc.t, smoTotSpdNorm);
+        hold on;
+        % plot shading for not moving bouts
+        patch(ftAx, ftNotMovingXT, ftNotMovingY, 'black','FaceAlpha',0.3);
     end
 
 
@@ -371,17 +566,28 @@ function [notMoveInd, notMoveBout, moveInd, moveBout, notMoveParams] = ...
         pause(0.1);
     end
 
-    % get all parameters
-    notMoveInd = zeroVelInd;
-    notMoveBout = [notMoveStartInd, notMoveEndInd];
+
+
+
+    % get all return values, leg
+    legNotMoveBout = [legNotMoveStartInd, legNotMoveEndInd];
     
-    allInd = (1:length(legTrack.t))'; % all indicies in trial
+    allLegInd = (1:length(legTrack.t))'; % all indicies in trial
     
     % move indicies are inverse of not move indicies
-    moveInd = allInd(~ismember(allInd,zeroVelInd));
+    legMoveInd = allLegInd(~ismember(allLegInd,legNotMoveInd));
     % convert indicies to bout starts and ends
-    [moveBoutStartInd, moveBoutEndInd, ~] = findBouts(moveInd);
-    moveBout = [moveBoutStartInd, moveBoutEndInd];
+    [legMoveBoutStartInd, legMoveBoutEndInd, ~] = findBouts(legMoveInd);
+    legMoveBout = [legMoveBoutStartInd, legMoveBoutEndInd];
+
+    % get all return values, FicTrac
+    ftNotMoveBout = [ftNotMoveStartInd, ftNotMoveEndInd];
+
+    allFtInd = (1:length(fictracProc.t))';
+
+    ftMoveInd = allFtInd(~ismember(allFtInd,ftNotMoveInd));
+    [ftMoveBoutStartInd, ftMoveBoutEndInd, ~] = findBouts(ftMoveInd);
+    ftMoveBout = [ftMoveBoutStartInd, ftMoveBoutEndInd];
     
     close(f);
 end

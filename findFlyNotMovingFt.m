@@ -29,13 +29,13 @@ function [notMoveInd, notMoveStartInd, notMoveEndInd] = ...
     findFlyNotMovingFt(totSpdNormSmo, thresh, minBoutLenSamp)
 
     % use threshold to get not moving indices
-    notMoveLogical = totSpdNormSmo <= thresh;
+    notMoveLogical = totSpdNormSmo' <= thresh;
     
     % indicies where fly transitions between moving and not moving
     transInd = find(diff(notMoveLogical)) + 1;
     
     % add edges to transitions, so first and last bouts are included
-    if transInd(end) == length(notMveLogical)
+    if transInd(end) == length(notMoveLogical)
         transInd = [1 transInd];
     else
         transInd = [1 transInd (length(notMoveLogical)+1)];

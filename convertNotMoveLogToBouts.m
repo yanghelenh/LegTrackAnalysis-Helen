@@ -20,6 +20,12 @@
 %   7/1/22 - HHY
 %
 function [startInd, endInd, allInd] = convertNotMoveLogToBouts(logVec)
+
+    % convert logVec to row
+    if iscolumn(logVec)
+        logVec = logVec';
+    end
+
     % get start and end indices of not move bouts
     startInd = find(diff(logVec) > 0.9) + 1;
     endInd = find(diff(logVec) < -0.9);
@@ -31,7 +37,7 @@ function [startInd, endInd, allInd] = convertNotMoveLogToBouts(logVec)
 
     % add end of trial if fly is not moving at end
     if (logVec(end))
-        endInd = [endInd length(legNotMoveLog)];
+        endInd = [endInd length(logVec)];
     end
 
     % convert notMoveLogical to indices

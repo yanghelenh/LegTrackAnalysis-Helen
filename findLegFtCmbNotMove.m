@@ -148,7 +148,7 @@ function [legNotMoveIndNew, legStartIndNew, legEndIndNew, ...
                 % for leg logical, get indices corresponding to this bout's
                 %  start and end times
                 thisStartInd = find(legT >= ftNotMoveStartTimes(i),1,'first');
-                thisEndInd = fint(legT <= ftNotMoveEndTimes(i),1,'last');
+                thisEndInd = find(legT <= ftNotMoveEndTimes(i),1,'last');
                 % flip bits
                 legNotMoveLog(thisStartInd:thisEndInd) = true;
 
@@ -173,13 +173,13 @@ function [legNotMoveIndNew, legStartIndNew, legEndIndNew, ...
             end
 
         % convert FicTrac not moving bouts to leg time base
-        case 'FictracOnly'
+        case 'fictracOnly'
             % loop through all FicTrac not moving bouts
             for i = 1:length(ftNotMoveStartTimes)
                 % for leg logical, get indices corresponding to this bout's
                 %  start and end times
                 thisStartInd = find(legT >= ftNotMoveStartTimes(i),1,'first');
-                thisEndInd = fint(legT <= ftNotMoveEndTimes(i),1,'last');
+                thisEndInd = find(legT <= ftNotMoveEndTimes(i),1,'last');
                 % flip bits
                 legNotMoveLog(thisStartInd:thisEndInd) = true;
 
