@@ -38,8 +38,8 @@
 %
 % UPDATED:
 %   10/2/21 - HHY
-%   7/6/22 - HHY - add stepPosX, stepPosY, and stepYLengths to legSteps 
-%       output struct
+%   7/6/22 - HHY - add stepAEPX, stepPEPX, stepAEPY, stepPEPY and 
+%       stepYLengths to legSteps output struct
 %
 function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     
@@ -60,8 +60,10 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     stepSpeeds = zeros(size(legSteps.stepInds,1), 2);
     stepVelX = zeros(size(legSteps.stepInds,1), 2);
     stepVelY = zeros(size(legSteps.stepInds,1), 2);
-    stepPosX = zeros(size(legSteps.stepInds,1),3);
-    stepPosY = zeros(size(legSteps.stepInds,1),3);
+    stepAEPX = zeros(size(legSteps.stepInds,1),2);
+    stepAEPY = zeros(size(legSteps.stepInds,1),2);
+    stepPEPX = zeros(size(legSteps.stepInds,1),2);
+    stepPEPY = zeros(size(legSteps.stepInds,1),2);
     stepFtFwd = zeros(size(legSteps.stepInds,1),2);
     stepFtYaw = zeros(size(legSteps.stepInds,1),2);
     stepFtLat = zeros(size(legSteps.stepInds,1),2);
@@ -104,9 +106,34 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
         stepYLengths(i,1) = stepMidY - stepStartY;
         stepYLengths(i,2) = stepEndY - stepMidY;
 
-        % step X and Y positions
-        stepPosX(i,:) = [stepStartX, stepMidX, stepEndX];
-        stepPosY(i,:) = [stepStartY, stepMidY, stepEndY];
+        % step AEP
+        % get whether start or mid position is most anterior (min position)
+        [~, aepInd] = min([stepStartX, stepMidX]);
+        % match AEP X to AEP Y; PEP is one that's not AEP
+        if (aepInd == 1)
+            stepAEPX(i,1) = stepStartX;
+            stepAEPY(i,1) = stepStartY;
+            stepPEPX(i,1) = stepMidX;
+            stepPEPY(i,1) = stepMidY;
+        else
+            stepAEPX(i,1) = stepMidX;
+            stepAEPY(i,1) = stepMidY;
+            stepPEPX(i,1) = stepStartX;
+            stepPEPY(i,1) = stepStartY;
+        end
+        % same for second half step
+        [~, aepInd] = min([stepMidX, stepEndX]);
+        if (aepInd == 1)
+            stepAEPX(i,2) = stepMidX;
+            stepAEPY(i,2) = stepMidY;
+            stepPEPX(i,2) = stepEndX;
+            stepPEPY(i,2) = stepEndY;
+        else
+            stepAEPX(i,2) = stepEndY;
+            stepAEPY(i,2) = stepEndY;
+            stepPEPX(i,2) = stepMidX;
+            stepPEPY(i,2) = stepEndY;
+        end
 
         % get direction of first half step (start to mid)
         stepDirections(i,1) = findAngle2Pts(stepStartX, stepStartY, ...
@@ -194,8 +221,10 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     legSteps.stepSpeeds = stepSpeeds;
     legSteps.stepVelX = stepVelX;
     legSteps.stepVelY = stepVelY;
-    legSteps.stepPosX = stepPosX;
-    legSteps.stepPosY = stepPosY;
+    legSteps.stepAEPX = stepAEPX;
+    legSteps.stepAEPY = stepAEPY;
+    legSteps.stepPEPX = stepPEPX;
+    legSteps.stepPEPY = stepPEPY;
     legSteps.stepFtFwd = stepFtFwd;
     legSteps.stepFtLat = stepFtLat;
     legSteps.stepFtYaw = stepFtYaw;

@@ -14,11 +14,20 @@
 %       stepInds
 %       stepWhichLeg
 %       stepLengths
+%       stepXLengths
+%       stepYLengths
 %       stepDirections
 %       stepDurations
 %       stepSpeeds
 %       stepVelX
 %       stepVelY
+%       stepAEPX
+%       stepAEPY
+%       stepPEPX
+%       stepPEPY
+%       stepFtFwd
+%       stepFtLat
+%       stepFtYaw
 %       stepSwingStance - n x 2 matrix for swing/stance calls for each half
 %           step; 1 for stance, -1 for swing
 %       swingStanceMethod
@@ -27,48 +36,74 @@
 %   stanceStepParams - struct of step parameters during stance, with
 %     fields:
 %       stepLengths
+%       stepXLengths
+%       stepYLengths
 %       stepDirections
 %       stepDurations
 %       stepSpeeds
 %       stepVelX
 %       stepVelY
+%       stepAEPX
+%       stepAEPY
+%       stepPEPX
+%       stepPEPY
+%       stepFtFwd
+%       stepFtLat
+%       stepFtYaw
 %   swingStepParams - struct of step parameters during swing, with fields:
 %       stepLengths
+%       stepXLengths
+%       stepYLengths
 %       stepDirections
 %       stepDurations
 %       stepSpeeds
 %       stepVelX
 %       stepVelY
+%       stepAEPX - calculated, but AEP and PEP applies really stance only
+%       stepAEPY
+%       stepPEPX
+%       stepPEPY
+%       stepFtFwd
+%       stepFtLat
+%       stepFtYaw
 %
 % CREATED: 10/2/21 - HHY
 %
 % UPDATED:
 %   10/2/21 - HHY
+%   7/6/22 - HHY - instead of manually specifying all legStep parameters,
+%       loop through all fields, exempting named ones
 %
 function [stanceStepParams, swingStepParams] = getStepParamsSwingStance(...
     legSteps)
 
-    % stance 
-    stanceStepParams.stepLength = groupStepParamsBySwingStance(...
-        legSteps.stepLengths, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepDirections = groupStepParamsBySwingStance(...
-        legSteps.stepDirections, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepDurations = groupStepParamsBySwingStance(...
-        legSteps.stepDurations, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepSpeeds = groupStepParamsBySwingStance(...
-        legSteps.stepSpeeds, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepVelX = groupStepParamsBySwingStance(...
-        legSteps.stepVelX, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepVelY = groupStepParamsBySwingStance(...
-        legSteps.stepVelY, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepFtFwd = groupStepParamsBySwingStance(...
-        legSteps.stepFtFwd, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepFtLat = groupStepParamsBySwingStance(...
-        legSteps.stepFtLat, legSteps.stepSwingStance, 1);
-    stanceStepParams.stepFtYaw = groupStepParamsBySwingStance(...
-        legSteps.stepFtYaw, legSteps.stepSwingStance, 1);
+    % legSteps fields that we're not feeding into
+    %  groupStepParamsBySwingStance
+    irregularParamNames = {'maxIndsAll', 'minIndsAll', 'maxWhichLeg',...
+        'minWhichLeg','userSelVal', 'stepInds', 'stepWhichLeg', ...
+        'stepSwingStance', 'swingStanceMethod'};
+
+    % get all field names for legSteps
+    legStepsFieldNames = fieldnames(legSteps);
+
+    % loop through all field names, separate parameters by swing and stance
+    %  for all applicable parameters
+    for i = 1:length(legStepsFieldNames)
+        thisName = legStepsFieldNames{i};
+        % if this is not in the list of parameters we're not feeding into
+        %  groupStepParamsBySwingStance()
+        if ~any(strcmp(thisName,irregularParamNames))
+            % stance
+            stanceStepParams.(thisName) = groupStepParamsBySwingStance(...
+                legSteps.(thisName), legSteps.stepSwingStance,1);
+            % swing
+            swingStepParams.(thisName) = groupStepParamsBySwingStance(...
+                legSteps.(thisName), legSteps.stepSwingStance, -1);
+        end
+    end
 
     % get stepInds and leg assignments (different array size than other params)
+    % stance
     stanceStepParams.stepInds = ...
         legSteps.stepInds(legSteps.stepSwingStance(:,1)==1,1:2);
     stanceStepParams.stepInds = [stanceStepParams.stepInds; ...
@@ -78,29 +113,8 @@ function [stanceStepParams, swingStepParams] = getStepParamsSwingStance(...
         legSteps.stepWhichLeg(legSteps.stepSwingStance(:,1)==1);
     stanceStepParams.whichLeg = [stanceStepParams.whichLeg; ...
         legSteps.stepWhichLeg(legSteps.stepSwingStance(:,2)==1)];
-
-
-    % swing
-    swingStepParams.stepLength = groupStepParamsBySwingStance(...
-        legSteps.stepLengths, legSteps.stepSwingStance, -1);
-    swingStepParams.stepDirections = groupStepParamsBySwingStance(...
-        legSteps.stepDirections, legSteps.stepSwingStance, -1);
-    swingStepParams.stepDurations = groupStepParamsBySwingStance(...
-        legSteps.stepDurations, legSteps.stepSwingStance, -1);
-    swingStepParams.stepSpeeds = groupStepParamsBySwingStance(...
-        legSteps.stepSpeeds, legSteps.stepSwingStance, -1);
-    swingStepParams.stepVelX = groupStepParamsBySwingStance(...
-        legSteps.stepVelX, legSteps.stepSwingStance, -1);
-    swingStepParams.stepVelY = groupStepParamsBySwingStance(...
-        legSteps.stepVelY, legSteps.stepSwingStance, -1);
-    swingStepParams.stepFtFwd = groupStepParamsBySwingStance(...
-        legSteps.stepFtFwd, legSteps.stepSwingStance, -1);
-    swingStepParams.stepFtLat = groupStepParamsBySwingStance(...
-        legSteps.stepFtLat, legSteps.stepSwingStance, -1);
-    swingStepParams.stepFtYaw = groupStepParamsBySwingStance(...
-        legSteps.stepFtYaw, legSteps.stepSwingStance, -1);
-
     
+    % swing
     swingStepParams.stepInds = ...
         legSteps.stepInds(legSteps.stepSwingStance(:,1)==-1,1:2);
     swingStepParams.stepInds = [swingStepParams.stepInds; ...

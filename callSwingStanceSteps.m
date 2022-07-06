@@ -20,11 +20,20 @@
 %       stepInds
 %       stepWhichLeg
 %       stepLengths
+%       stepXLengths
+%       stepYLengths
 %       stepDirections
 %       stepDurations
 %       stepSpeeds
 %       stepVelX
 %       stepVelY
+%       stepAEPX
+%       stepAEPY
+%       stepPEPX
+%       stepPEPY
+%       stepFtFwd
+%       stepFtLat
+%       stepFtYaw
 %   legTrack - struct of leg tracking data, output of preprocessLegTrack
 %   whichMethod - string for which method to determine swing/stance:
 %       'duration' or 'fictrac'
@@ -136,7 +145,8 @@ function legSteps = callSwingStanceSteps(legSteps, legTrack, ...
             disp('Invalid method for swing/stance call chosen');
             return;
     end
-    
+
+
     % add swing/stance call to legSteps struct
     legSteps.stepSwingStance = stepSwingStance;
     legSteps.swingStanceMethod = whichMethod;
