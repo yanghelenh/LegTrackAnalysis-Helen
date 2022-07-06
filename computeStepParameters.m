@@ -18,8 +18,7 @@
 % OUTPUTS:
 %   legSteps - struct of leg step data, updated with additional fields.
 %     Each new field is n x 2 matrix of steps x (val start to mid), (val
-%     mid to end), except stepPosX and stepPosY, which are n x 3 (val
-%     start, mid, end)
+%     mid to end), except stepT, which is n x 3 (t at start, mid, end)
 %       stepLengths - step length in xy plane
 %       stepXLengths - step length in x direction
 %       stepYLengths - step length in y direction
@@ -28,8 +27,11 @@
 %       stepSpeeds - step speed in xy plane (body lengths/sec)
 %       stepVelX - step velocity in x direction (body lengths/sec)
 %       stepVelY - step velocity in y direction (body lengths/sec)
-%       stepPosX - step position in x axis
-%       stepPosY - step position in y axis
+%       stepAEPX - step anterior extreme position in X
+%       stepAEPY - step Y position for AEP as defined in X
+%       stepPEPX - step posterior extreme position in X
+%       stepPEPY - step Y position for PEP as defined in X
+%       stepT - time at start, mid, and end points of step (sec)
 %       stepFtFwd - FicTrac forward velocity during step (mm/sec)
 %       stepFtLat - FicTrac lateral velocity during step (mm/sec)
 %       stepFtYaw - FicTrac lateral velocity during step (deg/sec)
@@ -64,6 +66,7 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     stepAEPY = zeros(size(legSteps.stepInds,1),2);
     stepPEPX = zeros(size(legSteps.stepInds,1),2);
     stepPEPY = zeros(size(legSteps.stepInds,1),2);
+    stepT = zeros(size(legSteps.stepInds,1),3);
     stepFtFwd = zeros(size(legSteps.stepInds,1),2);
     stepFtYaw = zeros(size(legSteps.stepInds,1),2);
     stepFtLat = zeros(size(legSteps.stepInds,1),2);
@@ -149,6 +152,9 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
         % get time for step end
         stepEndT = legTrack.t(legSteps.stepInds(i,3));
 
+        % step time
+        stepT(i,:) = [stepStartT, stepMidT, stepEndT];
+
         % get duration of first half step (start to mid)
         stepDurations(i,1) = stepMidT - stepStartT;
         % get duration of second half step (mid to end)
@@ -225,6 +231,7 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     legSteps.stepAEPY = stepAEPY;
     legSteps.stepPEPX = stepPEPX;
     legSteps.stepPEPY = stepPEPY;
+    legSteps.stepT = stepT;
     legSteps.stepFtFwd = stepFtFwd;
     legSteps.stepFtLat = stepFtLat;
     legSteps.stepFtYaw = stepFtYaw;
