@@ -18,13 +18,18 @@
 % OUTPUTS:
 %   legSteps - struct of leg step data, updated with additional fields.
 %     Each new field is n x 2 matrix of steps x (val start to mid), (val
-%     mid to end)
+%     mid to end), except stepPosX and stepPosY, which are n x 3 (val
+%     start, mid, end)
 %       stepLengths - step length in xy plane
+%       stepXLengths - step length in x direction
+%       stepYLengths - step length in y direction
 %       stepDirections - step direction, degrees, in xy plane
 %       stepDurations - step duration (in sec)
 %       stepSpeeds - step speed in xy plane (body lengths/sec)
 %       stepVelX - step velocity in x direction (body lengths/sec)
 %       stepVelY - step velocity in y direction (body lengths/sec)
+%       stepPosX - step position in x axis
+%       stepPosY - step position in y axis
 %       stepFtFwd - FicTrac forward velocity during step (mm/sec)
 %       stepFtLat - FicTrac lateral velocity during step (mm/sec)
 %       stepFtYaw - FicTrac lateral velocity during step (deg/sec)
@@ -33,6 +38,8 @@
 %
 % UPDATED:
 %   10/2/21 - HHY
+%   7/6/22 - HHY - add stepPosX, stepPosY, and stepYLengths to legSteps 
+%       output struct
 %
 function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     
@@ -47,11 +54,14 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     % preallocate
     stepLengths = zeros(size(legSteps.stepInds,1), 2); 
     stepXLengths = zeros(size(legSteps.stepInds,1), 2);  
+    stepYLengths = zeros(size(legSteps.stepInds,1), 2);
     stepDirections = zeros(size(legSteps.stepInds,1), 2);
     stepDurations = zeros(size(legSteps.stepInds,1), 2);
     stepSpeeds = zeros(size(legSteps.stepInds,1), 2);
     stepVelX = zeros(size(legSteps.stepInds,1), 2);
     stepVelY = zeros(size(legSteps.stepInds,1), 2);
+    stepPosX = zeros(size(legSteps.stepInds,1),3);
+    stepPosY = zeros(size(legSteps.stepInds,1),3);
     stepFtFwd = zeros(size(legSteps.stepInds,1),2);
     stepFtYaw = zeros(size(legSteps.stepInds,1),2);
     stepFtLat = zeros(size(legSteps.stepInds,1),2);
@@ -89,6 +99,14 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
         % step X lengths
         stepXLengths(i,1) = stepMidX - stepStartX;
         stepXLengths(i,2) = stepEndX - stepMidX;
+
+        % step Y lengths
+        stepYLengths(i,1) = stepMidY - stepStartY;
+        stepYLengths(i,2) = stepEndY - stepMidY;
+
+        % step X and Y positions
+        stepPosX(i,:) = [stepStartX, stepMidX, stepEndX];
+        stepPosY(i,:) = [stepStartY, stepMidY, stepEndY];
 
         % get direction of first half step (start to mid)
         stepDirections(i,1) = findAngle2Pts(stepStartX, stepStartY, ...
@@ -170,11 +188,14 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     % add these parameters to legSteps struct
     legSteps.stepLengths = stepLengths;
     legSteps.stepXLengths = stepXLengths;
+    legSteps.stepYLengths = stepYLengths;
     legSteps.stepDirections = stepDirections;
     legSteps.stepDurations = stepDurations;
     legSteps.stepSpeeds = stepSpeeds;
     legSteps.stepVelX = stepVelX;
     legSteps.stepVelY = stepVelY;
+    legSteps.stepPosX = stepPosX;
+    legSteps.stepPosY = stepPosY;
     legSteps.stepFtFwd = stepFtFwd;
     legSteps.stepFtLat = stepFtLat;
     legSteps.stepFtYaw = stepFtYaw;
