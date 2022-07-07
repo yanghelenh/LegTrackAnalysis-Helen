@@ -25,6 +25,7 @@
 %       stepAEPY
 %       stepPEPX
 %       stepPEPY
+%       stepT
 %       stepFtFwd
 %       stepFtLat
 %       stepFtYaw
@@ -35,6 +36,8 @@
 % OUTPUTS:
 %   stanceStepParams - struct of step parameters during stance, with
 %     fields:
+%       stepInds
+%       stepWhichLeg
 %       stepLengths
 %       stepXLengths
 %       stepYLengths
@@ -47,10 +50,13 @@
 %       stepAEPY
 %       stepPEPX
 %       stepPEPY
+%       stepT
 %       stepFtFwd
 %       stepFtLat
 %       stepFtYaw
 %   swingStepParams - struct of step parameters during swing, with fields:
+%       stepInds
+%       stepWhichLeg
 %       stepLengths
 %       stepXLengths
 %       stepYLengths
@@ -63,6 +69,7 @@
 %       stepAEPY
 %       stepPEPX
 %       stepPEPY
+%       stepT
 %       stepFtFwd
 %       stepFtLat
 %       stepFtYaw
