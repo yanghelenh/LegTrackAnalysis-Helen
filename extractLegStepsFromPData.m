@@ -81,7 +81,7 @@ function extractLegStepsFromPData()
 
 
     % prompt user for pData file; defaults to folder containing pData files
-    disp('Select .trk file to process');
+    disp('Select pData file to process');
     [pDataName, pDataPath] = uigetfile('*pData.mat', 'Select pData file', ...
         pDataDir());
     % full path to pData file
@@ -216,6 +216,9 @@ function extractLegStepsFromPData()
         legSteps.maxWhichLeg = maxWhichLeg;
         legSteps.minWhichLeg = minWhichLeg;
         legSteps.userSelVal = userSelVal;
+
+        % also, save legIDs
+        legSteps.legIDs = legIDs;
         
         % update pData file
         save(pDataFilePath, 'legSteps', '-append');
