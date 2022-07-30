@@ -23,13 +23,18 @@
 %
 % UPDATED:
 %   7/1/22 - HHY
+%   7/28/22 - HHY remove dropped indices from consideration
 %
 
 function [notMoveInd, notMoveStartInd, notMoveEndInd] = ...
-    findFlyNotMovingFt(totSpdNormSmo, thresh, minBoutLenSamp)
+    findFlyNotMovingFt(totSpdNormSmo, thresh, validLog, minBoutLenSamp)
+
+    if iscolumn(totSpdNormSmo)
+        totSpdNormSmo = totSpdNormSmo';
+    end
 
     % use threshold to get not moving indices
-    notMoveLogical = totSpdNormSmo' <= thresh;
+    notMoveLogical = (totSpdNormSmo <= thresh) & validLog;
     
     % indicies where fly transitions between moving and not moving
     transInd = find(diff(notMoveLogical)) + 1;
@@ -111,4 +116,14 @@ function [notMoveInd, notMoveStartInd, notMoveEndInd] = ...
 
     % convert notMoveLogical to indices
     notMoveInd = find(notMoveLogical);
+
+    if (isrow(notMoveInd))
+        notMoveInd = notMoveInd';
+    end
+    if (isrow(notMoveStartInd))
+        notMoveStartInd = notMoveStartInd';
+    end
+    if (isrow(notMoveEndInd))
+        notMoveEndInd = notMoveEndInd';
+    end
 end

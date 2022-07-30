@@ -204,4 +204,23 @@ function [legNotMoveIndNew, legStartIndNew, legEndIndNew, ...
         convertNotMoveLogToBouts(legNotMoveLog);
     [ftStartIndNew, ftEndIndNew, ftNotMoveIndNew] = ...
         convertNotMoveLogToBouts(ftNotMoveLog);
+
+    if (isrow(legNotMoveIndNew))
+        legNotMoveIndNew = legNotMoveIndNew';
+    end
+    if (isrow(legStartIndNew))
+        legStartIndNew = legStartIndNew';
+    end
+    if (isrow(legEndIndNew))
+        legEndIndNew = legEndIndNew';
+    end
+    if (isrow(ftNotMoveIndNew))
+        ftNotMoveIndNew = ftNotMoveIndNew';
+    end
+    if (isrow(ftStartIndNew))
+        ftStartIndNew = ftStartIndNew';
+    end
+    if (isrow(ftEndIndNew))
+        ftEndIndNew = ftEndIndNew';
+    end
 end

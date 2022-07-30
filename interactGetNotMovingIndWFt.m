@@ -120,6 +120,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     validInd(fictracProc.dropInd) = [];
     validInd = validInd(sigmaSamp:(end-sigmaSamp));
 
+    % logical for when fictrac is valid
+    validLog = true(1,length(fictracProc.totSpd));
+    validLog(fictracProc.dropInd) = false;
+
     % normalize total speed
     maxSpd = max(fictracProc.totSpd(validInd));
     
@@ -144,7 +148,7 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     % get not moving calls with initial FicTrac parameters
     [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
         findFlyNotMovingFt(smoTotSpdNorm, ...
-        notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+        notMoveParams.ftTotSpdThresh, validLog, ftMinBoutLenSamp);
 
     % get not moving, combined b/w leg and FicTrac calls
     [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
@@ -153,21 +157,22 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
         notMoveParams.cmbMethod);
     
-    % get shading for not moving, for leg
-    legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
-        legNotMoveEndInd; legNotMoveEndInd];
-    legNotMovingXT = legTrack.t(legNotMovingX);
-    legY0 = ones(size(legNotMoveStartInd)) * -0.6;
-    legY1 = ones(size(legNotMoveStartInd)) * 0.6;
-    legNotMovingY = [legY0; legY1; legY1; legY0];
-
-    % get shading for not moving, for FicTrac
-    ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
-        ftNotMoveEndInd; ftNotMoveEndInd];
-    ftNotMovingXT = fictracProc.t(ftNotMovingX);
-    ftY0 = zeros(size(ftNotMoveStartInd));
-    ftY1 = ones(size(ftNotMoveStartInd));
-    ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
+        % update patches
+        % get shading for not moving, for leg
+        legNotMovingX = [legNotMoveStartInd'; legNotMoveStartInd'; ...
+            legNotMoveEndInd'; legNotMoveEndInd'];
+        legNotMovingXT = legTrack.t(legNotMovingX);
+        legY0 = ones(size(legNotMoveStartInd')) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd')) * 0.6;
+        legNotMovingY = [legY0; legY1; legY1; legY0];
+    
+        % get shading for not moving, for FicTrac
+        ftNotMovingX = [ftNotMoveStartInd'; ftNotMoveStartInd'; ...
+            ftNotMoveEndInd'; ftNotMoveEndInd'];
+        ftNotMovingXT = fictracProc.t(ftNotMovingX);
+        ftY0 = zeros(size(ftNotMoveStartInd'));
+        ftY1 = ones(size(ftNotMoveStartInd'));
+        ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
     
     
     % initialize figure
@@ -311,7 +316,7 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         % get not moving calls with initial FicTrac parameters
         [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
             findFlyNotMovingFt(smoTotSpdNorm, ...
-            notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+            notMoveParams.ftTotSpdThresh, validLog, ftMinBoutLenSamp);
 
         % get not moving, combined b/w leg and FicTrac calls
         [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
@@ -320,20 +325,21 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
             legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
             notMoveParams.cmbMethod);
         
+        % update patches
         % get shading for not moving, for leg
-        legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
-            legNotMoveEndInd; legNotMoveEndInd];
+        legNotMovingX = [legNotMoveStartInd'; legNotMoveStartInd'; ...
+            legNotMoveEndInd'; legNotMoveEndInd'];
         legNotMovingXT = legTrack.t(legNotMovingX);
-        legY0 = ones(size(legNotMoveStartInd)) * -0.6;
-        legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+        legY0 = ones(size(legNotMoveStartInd')) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd')) * 0.6;
         legNotMovingY = [legY0; legY1; legY1; legY0];
     
         % get shading for not moving, for FicTrac
-        ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
-            ftNotMoveEndInd; ftNotMoveEndInd];
+        ftNotMovingX = [ftNotMoveStartInd'; ftNotMoveStartInd'; ...
+            ftNotMoveEndInd'; ftNotMoveEndInd'];
         ftNotMovingXT = fictracProc.t(ftNotMovingX);
-        ftY0 = zeros(size(ftNotMoveStartInd));
-        ftY1 = ones(size(ftNotMoveStartInd));
+        ftY0 = zeros(size(ftNotMoveStartInd'));
+        ftY1 = ones(size(ftNotMoveStartInd'));
         ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
         
         % plot right leg
@@ -408,7 +414,7 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         % get not moving calls with initial FicTrac parameters
         [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
             findFlyNotMovingFt(smoTotSpdNorm, ...
-            notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+            notMoveParams.ftTotSpdThresh, validLog, ftMinBoutLenSamp);
     
         % get not moving, combined b/w leg and FicTrac calls
         [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
@@ -417,20 +423,21 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
             legTrack.t, ftNotMoveStartInd, ftNotMoveEndInd, fictracProc.t, ...
             notMoveParams.cmbMethod);
         
+        % update patches
         % get shading for not moving, for leg
-        legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
-            legNotMoveEndInd; legNotMoveEndInd];
+        legNotMovingX = [legNotMoveStartInd'; legNotMoveStartInd'; ...
+            legNotMoveEndInd'; legNotMoveEndInd'];
         legNotMovingXT = legTrack.t(legNotMovingX);
-        legY0 = ones(size(legNotMoveStartInd)) * -0.6;
-        legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+        legY0 = ones(size(legNotMoveStartInd')) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd')) * 0.6;
         legNotMovingY = [legY0; legY1; legY1; legY0];
     
         % get shading for not moving, for FicTrac
-        ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
-            ftNotMoveEndInd; ftNotMoveEndInd];
+        ftNotMovingX = [ftNotMoveStartInd'; ftNotMoveStartInd'; ...
+            ftNotMoveEndInd'; ftNotMoveEndInd'];
         ftNotMovingXT = fictracProc.t(ftNotMovingX);
-        ftY0 = zeros(size(ftNotMoveStartInd));
-        ftY1 = ones(size(ftNotMoveStartInd));
+        ftY0 = zeros(size(ftNotMoveStartInd'));
+        ftY1 = ones(size(ftNotMoveStartInd'));
         ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
         
         % plot right leg
@@ -482,7 +489,7 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         % get not moving calls with initial FicTrac parameters
         [ftNotMoveInd, ftNotMoveStartInd, ftNotMoveEndInd] = ...
             findFlyNotMovingFt(smoTotSpdNorm, ...
-            notMoveParams.ftTotSpdThresh, ftMinBoutLenSamp);
+            notMoveParams.ftTotSpdThresh, validLog, ftMinBoutLenSamp);
     
         % get not moving, combined b/w leg and FicTrac calls
         [legNotMoveInd, legNotMoveStartInd, legNotMoveEndInd, ...
@@ -502,22 +509,21 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         % set radio button value to current one
         cmbRadioButton.SelectedObject = cmbButtons{metButInd};
         
-        % update plot
         % update patches
         % get shading for not moving, for leg
-        legNotMovingX = [legNotMoveStartInd; legNotMoveStartInd; ...
-            legNotMoveEndInd; legNotMoveEndInd];
+        legNotMovingX = [legNotMoveStartInd'; legNotMoveStartInd'; ...
+            legNotMoveEndInd'; legNotMoveEndInd'];
         legNotMovingXT = legTrack.t(legNotMovingX);
-        legY0 = ones(size(legNotMoveStartInd)) * -0.6;
-        legY1 = ones(size(legNotMoveStartInd)) * 0.6;
+        legY0 = ones(size(legNotMoveStartInd')) * -0.6;
+        legY1 = ones(size(legNotMoveStartInd')) * 0.6;
         legNotMovingY = [legY0; legY1; legY1; legY0];
     
         % get shading for not moving, for FicTrac
-        ftNotMovingX = [ftNotMoveStartInd; ftNotMoveStartInd; ...
-            ftNotMoveEndInd; ftNotMoveEndInd];
+        ftNotMovingX = [ftNotMoveStartInd'; ftNotMoveStartInd'; ...
+            ftNotMoveEndInd'; ftNotMoveEndInd'];
         ftNotMovingXT = fictracProc.t(ftNotMovingX);
-        ftY0 = zeros(size(ftNotMoveStartInd));
-        ftY1 = ones(size(ftNotMoveStartInd));
+        ftY0 = zeros(size(ftNotMoveStartInd'));
+        ftY1 = ones(size(ftNotMoveStartInd'));
         ftNotMovingY = [ftY0; ftY1; ftY1; ftY0];
         
         % plot right leg

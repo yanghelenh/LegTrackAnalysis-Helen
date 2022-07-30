@@ -20,6 +20,9 @@
 %
 % UPDATED:
 %   7/6/22 - HHY
+%   7/19/22 - HHY - add times to moveNotMove struct
+%   7/27/22 - HHY - bug fixes, option for non-interactive max/min leg
+%       position selection
 %
 function extractLegStepsFromPData()
 
@@ -62,6 +65,11 @@ function extractLegStepsFromPData()
     % merge any not-moving bouts less than this many samples apart
     notMoveParams.adjBoutSepInit = 50;  
     notMoveParams.adjBoutSepEnd = 50;
+    % FicTrac notMoveParams
+    notMoveParams.ftTotSpdThresh = 0.1;
+    notMoveParams.ftMinBoutLen = 0.2;
+    notMoveParams.cmbMethod = 'union';
+    notMoveParams.sigma = 0.2;
     
     % parameters - max/min determination
     % length of window, in frames, for moving average
@@ -82,13 +90,17 @@ function extractLegStepsFromPData()
 
     % prompt user for pData file; defaults to folder containing pData files
     disp('Select pData file to process');
-    [pDataName, pDataPath] = uigetfile('*pData.mat', 'Select pData file', ...
+    [pDataName, pDataPath] = uigetfile('*.mat', 'Select pData file', ...
         pDataDir());
     % full path to pData file
     pDataFullPath = [pDataPath filesep pDataName];
 
+    fprintf('Selected %s\n', pDataName);
+
     % get variables saved in pData file
     pDatVars = whos('-file', pDataFullPath);
+
+    pDatVarsNames = cell(size(pDatVars));
     
     % convert pDatVars into cell array of just names
     for i = 1:length(pDatVars)
@@ -101,7 +113,7 @@ function extractLegStepsFromPData()
         fprintf('%s does not contain the legTrack struct. Ending \n', ...
             pDataName);
         return;
-    elseif (~any(strcmpi(pDataVarsNames, 'fictracProc')))
+    elseif (~any(strcmpi(pDatVarsNames, 'fictracProc')))
         fprintf('%s does not contain the fictracProc struct. Ending \n', ...
             pDataName);
         return;
@@ -161,10 +173,12 @@ function extractLegStepsFromPData()
         moveNotMove.legNotMoveBout = legNotMoveBout;
         moveNotMove.legMoveInd = legMoveInd;
         moveNotMove.legMoveBout = legMoveBout;
+        moveNotMove.legT = legTrack.t;
         moveNotMove.ftNotMoveInd = ftNotMoveInd;
         moveNotMove.ftNotMoveBout = ftNotMoveBout;
         moveNotMove.ftMoveInd = ftMoveInd;
         moveNotMove.ftMoveBout = ftMoveBout;
+        moveNotMove.ftT = fictracProc.t;
         moveNotMove.notMoveParams = notMoveParams;
         
         % update pData
@@ -182,10 +196,20 @@ function extractLegStepsFromPData()
         
         % yes, redo
         if (strcmpi(contStr, 'y'))  
-            % compute max/min
-            [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
-                userSelVal] = interactGetLegReversals(legTrack, ...
-                moveNotMove, legRevParams, legIDs);
+            % ask if user wants to use interactive leg reversal selection
+            intStr = input('Interactive max/min selection? y/n ', 's');
+            if (strcmpi(intStr,'y'))
+                % compute max/min interactively
+                [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
+                    userSelVal] = interactGetLegReversals(legTrack, ...
+                    moveNotMove, legRevParams, legIDs);
+            else
+                % compute max/min, non-interactively
+                [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
+                    nonInteractGetLegReversals(legTrack, moveNotMove, ...
+                    legRevParams, legIDs);
+                userSelVal = [];
+            end
             
             % save into legSteps struct
             legSteps.maxIndsAll = maxIndsAll;
@@ -196,38 +220,46 @@ function extractLegStepsFromPData()
             
             
             % update pData file
-            save(pDataFilePath, 'legSteps', '-append');
+            save(pDataFullPath, 'legSteps', '-append');
             
         % no, don't redo
         else
             disp('Loading in previous legSteps');
-            load(pDataFilePath, 'legSteps');
+            load(pDataFullPath, 'legSteps');
         end
     % steps not yet computed
     else
-        % compute max/min
-        [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
-            userSelVal] = interactGetLegReversals(legTrack, ...
-            moveNotMove, legRevParams, legIDs);
-
+        % ask if user wants to use interactive leg reversal selection
+        intStr = input('Interactive max/min selection? y/n ', 's');
+        if (strcmpi(intStr,'y'))
+            % compute max/min interactively
+            [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
+                userSelVal] = interactGetLegReversals(legTrack, ...
+                moveNotMove, legRevParams, legIDs);
+        else
+            % compute max/min, non-interactively
+            [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
+                nonInteractGetLegReversals(legTrack, moveNotMove, ...
+                legRevParams, legIDs);
+            userSelVal = [];
+        end
+        
         % save into legSteps struct
         legSteps.maxIndsAll = maxIndsAll;
         legSteps.minIndsAll = minIndsAll;
         legSteps.maxWhichLeg = maxWhichLeg;
         legSteps.minWhichLeg = minWhichLeg;
         legSteps.userSelVal = userSelVal;
-
-        % also, save legIDs
-        legSteps.legIDs = legIDs;
+        
         
         % update pData file
-        save(pDataFilePath, 'legSteps', '-append');
+        save(pDataFullPath, 'legSteps', '-append');
     end
 
     % compute steps
     [stepInds, stepWhichLeg] = minMaxPosToSteps(legSteps.maxIndsAll, ...
         legSteps.minIndsAll, legSteps.maxWhichLeg, legSteps.minWhichLeg,...
-        moveNotMove.notMoveBout, moveNotMove.moveBout);
+        moveNotMove.legNotMoveBout, moveNotMove.legMoveBout);
     
     % save into legSteps struct
     legSteps.stepInds = stepInds;
@@ -246,7 +278,7 @@ function extractLegStepsFromPData()
         legSteps);
 
     % update pData file
-    save(pDataFilePath, 'legSteps', 'stanceStepParams', ...
+    save(pDataFullPath, 'legSteps', 'stanceStepParams', ...
         'swingStepParams', '-append');
 
 end
