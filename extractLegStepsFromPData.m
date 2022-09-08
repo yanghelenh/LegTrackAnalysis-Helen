@@ -217,6 +217,7 @@ function extractLegStepsFromPData()
             legSteps.maxWhichLeg = maxWhichLeg;
             legSteps.minWhichLeg = minWhichLeg;
             legSteps.userSelVal = userSelVal;
+            legSteps.legIDs = legIDs;
             
             
             % update pData file
@@ -250,6 +251,7 @@ function extractLegStepsFromPData()
         legSteps.maxWhichLeg = maxWhichLeg;
         legSteps.minWhichLeg = minWhichLeg;
         legSteps.userSelVal = userSelVal;
+        legSteps.legIDs = legIDs;
         
         
         % update pData file
