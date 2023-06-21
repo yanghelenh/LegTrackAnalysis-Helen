@@ -583,8 +583,12 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     % move indicies are inverse of not move indicies
     legMoveInd = allLegInd(~ismember(allLegInd,legNotMoveInd));
     % convert indicies to bout starts and ends
-    [legMoveBoutStartInd, legMoveBoutEndInd, ~] = findBouts(legMoveInd);
-    legMoveBout = [legMoveBoutStartInd, legMoveBoutEndInd];
+    if ~isempty(legMoveInd)
+        [legMoveBoutStartInd, legMoveBoutEndInd, ~] = findBouts(legMoveInd);
+        legMoveBout = [legMoveBoutStartInd, legMoveBoutEndInd];
+    else
+        legMoveBout = [];
+    end
 
     % get all return values, FicTrac
     ftNotMoveBout = [ftNotMoveStartInd, ftNotMoveEndInd];
@@ -592,8 +596,12 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     allFtInd = (1:length(fictracProc.t))';
 
     ftMoveInd = allFtInd(~ismember(allFtInd,ftNotMoveInd));
-    [ftMoveBoutStartInd, ftMoveBoutEndInd, ~] = findBouts(ftMoveInd);
-    ftMoveBout = [ftMoveBoutStartInd, ftMoveBoutEndInd];
+    if ~isempty(ftMoveInd)
+        [ftMoveBoutStartInd, ftMoveBoutEndInd, ~] = findBouts(ftMoveInd);
+        ftMoveBout = [ftMoveBoutStartInd, ftMoveBoutEndInd];
+    else
+        ftMoveBout = [];
+    end
     
     close(f);
 end

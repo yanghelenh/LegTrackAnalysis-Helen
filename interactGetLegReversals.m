@@ -47,6 +47,8 @@
 %   10/1/21 - HHY
 %   7/7/22 - HHY - moveNotMove now contains both leg and FicTrac data,
 %       update calls to reflect new field names
+%   6/21/23 - HHY - update to use getLegReversals_1Leg() instead of
+%       findLegReversals()
 %
 function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     interactGetLegReversals(legTrack, moveNotMove, legRevParams, legIDs)
@@ -75,16 +77,21 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
     btnHeight = 20;
     btnWidth = 80;
     
-    % ranges for all legRevParams
-    lrpRanges.movAvgWinLen = [1 100];
-    lrpRanges.maxminWinLen = [1 100];
-    lrpRanges.adjThresh = [1 15];
-    lrpRanges.maxPosVelThresh = [0 1e-3];
-    lrpRanges.maxNegVelThresh = [-1e-2 0];
-    lrpRanges.minPosVelThresh = [0 1e-3];
-    lrpRanges.minNegVelThresh = [-1e-2 0];
-    lrpRanges.numNegVelFrames = [1 50];
-    lrpRanges.numPosVelFrames = [1 50];
+    % 6/21/23 - these are obsolete
+%     % ranges for all legRevParams
+%     lrpRanges.movAvgWinLen = [1 100];
+%     lrpRanges.maxminWinLen = [1 100];
+%     lrpRanges.adjThresh = [1 15];
+%     lrpRanges.maxPosVelThresh = [0 1e-3];
+%     lrpRanges.maxNegVelThresh = [-1e-2 0];
+%     lrpRanges.minPosVelThresh = [0 1e-3];
+%     lrpRanges.minNegVelThresh = [-1e-2 0];
+%     lrpRanges.numNegVelFrames = [1 50];
+%     lrpRanges.numPosVelFrames = [1 50];
+    
+    % ranges for legRevParams
+    lrpRanges.minProm = [0 0.2];
+    lrpRanges.minDist = [1 50];
     
     % preallocate userSelVal array of structs
     % single struct
@@ -133,10 +140,15 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         
         
         % get max and min for this leg, with initial parameters
-        [maxInds, minInds] = findLegReversals(...
+        % 6/21/23 - replace findLegReversals with getLegReversals_1Leg()
+%         [maxInds, minInds] = findLegReversals(...
+%             legTrack.srnLegX(:,thisLegInd), ...
+%             legTrack.legXVel(:,thisLegInd), moveNotMove.legNotMoveInd, ...
+%             legRevParamsInit);
+
+        [maxInds, minInds] = getLegReversals_1Leg(...
             legTrack.srnLegX(:,thisLegInd), ...
-            legTrack.legXVel(:,thisLegInd), moveNotMove.legNotMoveInd, ...
-            legRevParamsInit);
+            moveNotMove.notMoveInd, legRevParamsInit);
         
         % get leg position values for these indicies
         initMaxVals = legTrack.srnLegX(maxInds, thisLegInd);
@@ -329,10 +341,15 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         thisLegRevParams.(lrpNames{nameInd}) = thisVal;
 
         % get new max and min calls
-        [maxInds, minInds] = findLegReversals(...
+        % 6/21/23 - findLegReversals() replaced by getLegReversals_1Leg()
+%         [maxInds, minInds] = findLegReversals(...
+%             legTrack.srnLegX(:,thisLegInd), ...
+%             legTrack.legXVel(:,thisLegInd), moveNotMove.legNotMoveInd, ... 
+%             thisLegRevParams);
+
+        [maxInds, minInds] = getLegReversals_1Leg(...
             legTrack.srnLegX(:,thisLegInd), ...
-            legTrack.legXVel(:,thisLegInd), moveNotMove.legNotMoveInd, ... 
-            thisLegRevParams);
+            moveNotMove.notMoveInd, legRevParams);
 
         % get leg position values for these indicies
         maxVals = legTrack.srnLegX(maxInds, thisLegInd);

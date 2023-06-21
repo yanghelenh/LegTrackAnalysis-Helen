@@ -14,6 +14,9 @@
 %       stepInds
 %       stepWhichLeg
 %   legTrack - struct of leg tracking data, output of preprocessLegTrack
+%   fictrac - struct of FicTrac data, output of filtFicTrac_all
+%   ephysSpikes -struct of ephys data processed for spiking, output of
+%       interactEphysGetSpikes
 %   
 % OUTPUTS:
 %   legSteps - struct of leg step data, updated with additional fields.
@@ -35,6 +38,12 @@
 %       stepFtFwd - FicTrac forward velocity during step (mm/sec)
 %       stepFtLat - FicTrac lateral velocity during step (mm/sec)
 %       stepFtYaw - FicTrac lateral velocity during step (deg/sec)
+%       stepSpikeRate - spike rate during step (Hz), calculated as number
+%           of spikes/step duration
+%       stepSpikeRateInt - spike rate during step (Hz), calculated as
+%           average spike rate during step (avg of ephysSpikes.spikeRate)
+%       stepMedFiltV - median filtered voltage during step (mV), calculated
+%           as average of ephysSpikes.medFiltV
 %
 % CREATED: 10/1/21 - HHY
 %
@@ -42,8 +51,13 @@
 %   10/2/21 - HHY
 %   7/6/22 - HHY - add stepAEPX, stepPEPX, stepAEPY, stepPEPY and 
 %       stepYLengths to legSteps output struct
+%   2/12/23 - HHY - add stepSpikeRate, stepSpikeRateInt, stepMedFiltV to
+%       legSteps output struct
+%   3/4/23 - HHY - update so that it doesn't crash if ephysSpikes doesn't
+%       exist
 %
-function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
+function legSteps = computeStepParameters(legSteps, legTrack, fictrac, ...
+    ephysSpikes)
     
     % interpolate FicTrac position to leg frame times (spline)
     interpFtFwdPos = interp1(fictrac.t, fictrac.fwdCumPos, ...
@@ -70,6 +84,9 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     stepFtFwd = zeros(size(legSteps.stepInds,1),2);
     stepFtYaw = zeros(size(legSteps.stepInds,1),2);
     stepFtLat = zeros(size(legSteps.stepInds,1),2);
+    stepSpikeRate = zeros(size(legSteps.stepInds,1),2);
+    stepSpikeRateInt = zeros(size(legSteps.stepInds,1),2);
+    stepMedFiltV = zeros(size(legSteps.stepInds,1),2);
     
     % loop through all steps, compute parameters for each half step
     for i = 1:size(legSteps.stepInds, 1)
@@ -216,6 +233,42 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
         % second half step
         stepFtLat(i,2) = (stepEndFtLatPos - stepMidFtLatPos) / ...
             stepDurations(i,2);
+
+        % process ephys info for leg steps if present
+        if ~isempty(ephysSpikes)
+            % indices into ephysSpikes vectors for time points matching start,
+            %  mid, end points of step
+            stepStartEphysInd = find(ephysSpikes.t >= stepStartT, 1, 'first');
+            stepMidEphysInd = find(ephysSpikes.t >= stepMidT, 1, 'first');
+            stepEndEphysInd = find(ephysSpikes.t >= stepEndT, 1, 'first');
+    
+            % number of spikes during first half step
+            numSpikes1 = length(find((ephysSpikes.startInd > stepStartEphysInd) & ...
+                (ephysSpikes.startInd <= stepMidEphysInd)));
+            % second half step
+            numSpikes2 = length(find((ephysSpikes.startInd > stepMidEphysInd) & ...
+                (ephysSpikes.startInd <= stepEndEphysInd)));
+    
+            % convert number of spikes to spike rate (divide by step duration)
+            stepSpikeRate(i,1) = numSpikes1 / stepDurations(i,1);
+            stepSpikeRate(i,2) = numSpikes2 / stepDurations(i,2);
+    
+            % mean spike rate during first half step
+            stepSpikeRateInt(i,1) = ...
+                mean(ephysSpikes.spikeRate(stepStartEphysInd:stepMidEphysInd));
+            % mean spike rate during second half step
+            stepSpikeRateInt(i,2) = ...
+                mean(ephysSpikes.spikeRate(stepMidEphysInd:stepEndEphysInd));
+    
+            % mean filtered voltage during first half step
+            stepMedFiltV(i,1) = ...
+                mean(ephysSpikes.medFiltV(stepStartEphysInd:stepMidEphysInd));
+            % mean spike rate during second half step
+            stepMedFiltV(i,2) = ...
+                mean(ephysSpikes.medFiltV(stepMidEphysInd:stepEndEphysInd));
+
+        end
+
     end
     
     % add these parameters to legSteps struct
@@ -235,4 +288,10 @@ function legSteps = computeStepParameters(legSteps, legTrack, fictrac)
     legSteps.stepFtFwd = stepFtFwd;
     legSteps.stepFtLat = stepFtLat;
     legSteps.stepFtYaw = stepFtYaw;
+    % only when there's ephys data
+    if ~isempty(ephysSpikes)
+        legSteps.stepSpikeRate = stepSpikeRate;
+        legSteps.stepSpikeRateInt = stepSpikeRateInt;
+        legSteps.stepMedFiltV = stepMedFiltV;
+    end
 end

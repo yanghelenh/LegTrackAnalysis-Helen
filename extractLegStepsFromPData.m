@@ -13,6 +13,7 @@
 % Current function. Effectively replaces processLegTrack()
 %
 % INPUTS:
+%   none, but expects pData file with legTrack and fictrac_proc
 %
 % OUTPUTS:
 %
@@ -23,6 +24,9 @@
 %   7/19/22 - HHY - add times to moveNotMove struct
 %   7/27/22 - HHY - bug fixes, option for non-interactive max/min leg
 %       position selection
+%   2/13/23 - HHY - update compute legSteps to include ephys data
+%   6/21/23 - HHY - update to use MATLAB findpeaks() instead of
+%       findLegReversals() to find max and min position
 %
 function extractLegStepsFromPData()
 
@@ -71,21 +75,27 @@ function extractLegStepsFromPData()
     notMoveParams.cmbMethod = 'union';
     notMoveParams.sigma = 0.2;
     
-    % parameters - max/min determination
-    % length of window, in frames, for moving average
-    legRevParams.movAvgWinLen = 30; 
-    % length of window, in frames, for finding max/min
-    legRevParams.maxminWinLen = 30; 
-    legRevParams.adjThresh = 4; % threshold for adjacent indicies
-    % threshold of what 1st derivative (vel) should exceed in the positive
-    %  direction for a position maximum
-    legRevParams.maxPosVelThresh = 0.0001; 
-    legRevParams.maxNegVelThresh = -0.001; % in negative direction
-    legRevParams.minPosVelThresh = 0.0001; % in pos dir, for leg pos min
-    legRevParams.minNegVelThresh = -0.001; % in neg dir, for leg pos min
-    % num of frames before and after max/min to check for velocity thresh
-    legRevParams.numNegVelFrames = 8;
-    legRevParams.numPosVelFrames = 12;
+    % as of 6/21/23 - outdated parameters
+%     % parameters - max/min determination
+%     % length of window, in frames, for moving average
+%     legRevParams.movAvgWinLen = 30; 
+%     % length of window, in frames, for finding max/min
+%     legRevParams.maxminWinLen = 30; 
+%     legRevParams.adjThresh = 4; % threshold for adjacent indicies
+%     % threshold of what 1st derivative (vel) should exceed in the positive
+%     %  direction for a position maximum
+%     legRevParams.maxPosVelThresh = 0.0001; 
+%     legRevParams.maxNegVelThresh = -0.001; % in negative direction
+%     legRevParams.minPosVelThresh = 0.0001; % in pos dir, for leg pos min
+%     legRevParams.minNegVelThresh = -0.001; % in neg dir, for leg pos min
+%     % num of frames before and after max/min to check for velocity thresh
+%     legRevParams.numNegVelFrames = 8;
+%     legRevParams.numPosVelFrames = 12;
+
+    % default parameters for extracting peaks - max/min position
+    %  determination
+    legRevParams.minProm = 0.05; % MinPeakProminence of findpeaks
+    legRevParams.minDist = 6; % MinPeakDistance of findpeaks
 
 
     % prompt user for pData file; defaults to folder containing pData files
@@ -119,8 +129,14 @@ function extractLegStepsFromPData()
         return;
     end
 
-    % load pData file
-    load(pDataFullPath, 'legTrack', 'fictracProc');
+    % whether the pData file has ephysSpikes (only trials w/ephys data)
+    if (any(strcmpi(pDatVarsNames, 'ephysSpikes'))) % yes
+        % load pData file
+        load(pDataFullPath, 'legTrack', 'fictracProc', 'ephysSpikes');
+    else % no ephysSpikes, make empty vector
+        load(pDataFullPath, 'legTrack', 'fictracProc');
+        ephysSpikes = [];
+    end
 
     % Moving/not moving %
 
@@ -205,9 +221,15 @@ function extractLegStepsFromPData()
                     moveNotMove, legRevParams, legIDs);
             else
                 % compute max/min, non-interactively
+                % replaced 6/21/23
+%                 [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
+%                     nonInteractGetLegReversals(legTrack, moveNotMove, ...
+%                     legRevParams, legIDs);
+
                 [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
-                    nonInteractGetLegReversals(legTrack, moveNotMove, ...
+                    getLegReversals(legTrack, moveNotMove, ...
                     legRevParams, legIDs);
+
                 userSelVal = [];
             end
             
@@ -216,6 +238,7 @@ function extractLegStepsFromPData()
             legSteps.minIndsAll = minIndsAll;
             legSteps.maxWhichLeg = maxWhichLeg;
             legSteps.minWhichLeg = minWhichLeg;
+            legSteps.legRevParams = legRevParams;
             legSteps.userSelVal = userSelVal;
             legSteps.legIDs = legIDs;
             
@@ -239,9 +262,15 @@ function extractLegStepsFromPData()
                 moveNotMove, legRevParams, legIDs);
         else
             % compute max/min, non-interactively
+            % 6/21/23 - replace with getLegReversals()
+%             [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
+%                 nonInteractGetLegReversals(legTrack, moveNotMove, ...
+%                 legRevParams, legIDs);
+
             [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
-                nonInteractGetLegReversals(legTrack, moveNotMove, ...
-                legRevParams, legIDs);
+                getLegReversals(legTrack, moveNotMove, legRevParams, ...
+                legIDs);
+
             userSelVal = [];
         end
         
@@ -250,6 +279,7 @@ function extractLegStepsFromPData()
         legSteps.minIndsAll = minIndsAll;
         legSteps.maxWhichLeg = maxWhichLeg;
         legSteps.minWhichLeg = minWhichLeg;
+        legSteps.legRevParams = legRevParams;
         legSteps.userSelVal = userSelVal;
         legSteps.legIDs = legIDs;
         
@@ -269,7 +299,8 @@ function extractLegStepsFromPData()
     
     
     % compute step parameters
-    legSteps = computeStepParameters(legSteps, legTrack, fictracProc);
+    legSteps = computeStepParameters(legSteps, legTrack, fictracProc, ...
+        ephysSpikes);
     
     % get swing/stance, currently, use duration method
     legSteps = callSwingStanceSteps(legSteps, legTrack, ...
