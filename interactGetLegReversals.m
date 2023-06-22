@@ -10,17 +10,8 @@
 %   legTrack - struct of leg tracking data, output of preprocessLegTrack
 %   moveNotMove - struct of moving/not-moving bout indicies, starts/ends
 %   legRevParams - struct of parameters for getting these leg reversals
-%       movAvgWinLen - length of window, in frames, for moving average
-%       maxminWinLen - length of window, in frames, for finding max/min
-%       adjThresh - threshold for adjacent indicies
-%       maxPosVelThresh - threshold of what 1st derivative (vel) should 
-%           exceed in the positive direction for a position maximum
-%       maxNegVelThresh - in negative direction
-%       minPosVelThresh - in pos dir, for leg pos min
-%       minNegVelThresh - in neg dir, for leg pos min
-%       numNegVelFrames - num of frames before and after max/min to check 
-%           for negative velocity thresh
-%       numPosVelFrames - num frames to check for positive velocity thresh
+%       minProm - parameter MinPeakProminence of findpeaks
+%       minDist - parameter MinPeakDistance of findpeaks
 %   legIDs - struct of parameters, IDs legs
 %       ind - indicies of legs, into raw position matricies, carried
 %           throughout

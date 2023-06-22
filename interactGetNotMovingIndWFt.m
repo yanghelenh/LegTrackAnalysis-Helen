@@ -58,6 +58,7 @@
 %
 % UPDATED:
 %   7/1/22 - HHY
+%   6/21/22 - HHY - change to use srnf leg position, not srn
 %
 function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     ftNotMoveInd, ftNotMoveBout, ftMoveInd, ftMoveBout, notMoveParams] = ...
@@ -181,11 +182,11 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     
     % plot right leg
     r2Ax = subplot('Position', [0.05 0.75 0.6 0.2]);
-    plot(legTrack.t, legTrack.srnLegX(:,r2LegInd));
+    plot(legTrack.t, legTrack.srnfLegX(:,r2LegInd));
     hold on;
     
     % plot dots for all not move ind
-    plot(legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
+    plot(legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,r2LegInd), ...
         '.','LineStyle','none');
     % plot shading for not moving bouts
     patch(legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
@@ -197,11 +198,11 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
     
     % plot left leg
     l2Ax = subplot('Position', [0.05 0.45 0.6 0.2]);
-    plot(legTrack.t, legTrack.srnLegX(:,l2LegInd));
+    plot(legTrack.t, legTrack.srnfLegX(:,l2LegInd));
     hold on;
     
     % plot dots for all not move ind
-    plot(legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
+    plot(legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,l2LegInd), ...
         '.','LineStyle','none');
     % plot shading for not moving bouts
     patch(legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3);
@@ -344,10 +345,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         
         % plot right leg
         cla(r2Ax);
-        plot(r2Ax,legTrack.t, legTrack.srnLegX(:,r2LegInd));
+        plot(r2Ax,legTrack.t, legTrack.srnfLegX(:,r2LegInd));
 
         % plot dots for all not move ind
-        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
+        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,r2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
         patch(r2Ax, legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
@@ -355,10 +356,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
 
         % plot left leg
         cla(l2Ax);
-        plot(l2Ax, legTrack.t, legTrack.srnLegX(:,l2LegInd));
+        plot(l2Ax, legTrack.t, legTrack.srnfLegX(:,l2LegInd));
 
         % plot dots for all not move ind
-        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
+        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,l2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
         patch(l2Ax,legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
@@ -442,10 +443,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         
         % plot right leg
         cla(r2Ax);
-        plot(r2Ax,legTrack.t, legTrack.srnLegX(:,r2LegInd));
+        plot(r2Ax,legTrack.t, legTrack.srnfLegX(:,r2LegInd));
 
         % plot dots for all not move ind
-        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
+        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,r2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
         patch(r2Ax, legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
@@ -453,10 +454,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
 
         % plot left leg
         cla(l2Ax);
-        plot(l2Ax, legTrack.t, legTrack.srnLegX(:,l2LegInd));
+        plot(l2Ax, legTrack.t, legTrack.srnfLegX(:,l2LegInd));
 
         % plot dots for all not move ind
-        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
+        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,l2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
         patch(l2Ax,legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
@@ -528,10 +529,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
         
         % plot right leg
         cla(r2Ax);
-        plot(r2Ax,legTrack.t, legTrack.srnLegX(:,r2LegInd));
+        plot(r2Ax,legTrack.t, legTrack.srnfLegX(:,r2LegInd));
 
         % plot dots for all not move ind
-        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,r2LegInd), ...
+        plot(r2Ax,legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,r2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
         patch(r2Ax, legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
@@ -539,10 +540,10 @@ function [legNotMoveInd, legNotMoveBout, legMoveInd, legMoveBout, ...
 
         % plot left leg
         cla(l2Ax);
-        plot(l2Ax, legTrack.t, legTrack.srnLegX(:,l2LegInd));
+        plot(l2Ax, legTrack.t, legTrack.srnfLegX(:,l2LegInd));
 
         % plot dots for all not move ind
-        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnLegX(legNotMoveInd,l2LegInd), ...
+        plot(l2Ax,legTrack.t(legNotMoveInd), legTrack.srnfLegX(legNotMoveInd,l2LegInd), ...
             '.','LineStyle','none');
         % plot shading for not moving bouts
         patch(l2Ax,legNotMovingXT, legNotMovingY, 'black', 'FaceAlpha', 0.3');
