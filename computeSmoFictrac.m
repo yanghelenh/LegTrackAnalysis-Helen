@@ -110,6 +110,12 @@ function computeSmoFictrac(pDataPath, sigmaPos, sigmaVel)
         fictracSmo.slideVel = interp1(fictrac.t, slideVelSmo, ...
             fictracProc.t, 'spline');
 
+        % add time info to fictracSmo output struct
+        fictracSmo.t = fictracProc.t;
+
+        % copy over dropInd from fictracProc
+        fictracSmo.dropInd = fictracProc.dropInd;
+
         % add bias info to fictracSmo output struct
         fictracSmo.angVelBias = angVelBias;
         fictracSmo.slideVelBias = slideVelBias;
