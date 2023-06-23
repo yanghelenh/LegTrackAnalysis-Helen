@@ -27,6 +27,7 @@
 %   2/13/23 - HHY - update compute legSteps to include ephys data
 %   6/21/23 - HHY - update to use MATLAB findpeaks() instead of
 %       findLegReversals() to find max and min position
+%   6/22/23 - HHY - add phase info
 %
 function extractLegStepsFromPData()
 
@@ -310,8 +311,16 @@ function extractLegStepsFromPData()
     [stanceStepParams, swingStepParams] = getStepParamsSwingStance(...
         legSteps);
 
+    % get phase, using method of fitting each half step
+    legPhase = getLegPhaseFromSteps(legSteps.stepInds, ...
+        legSteps.stepWhichLeg, legTrack.srnfLegX(:,legIDs.ind), ...
+        moveNotMove.legNotMoveBout);
+
+    % get phase differences b/w legs
+    phaseDiffs = getLegPhaseDiffs(legPhase, legIDs, 'degrees');
+
     % update pData file
     save(pDataFullPath, 'legSteps', 'stanceStepParams', ...
-        'swingStepParams', '-append');
+        'swingStepParams', 'legPhase', 'phaseDiffs', '-append');
 
 end
