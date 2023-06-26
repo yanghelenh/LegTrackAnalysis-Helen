@@ -28,6 +28,7 @@
 %   6/21/23 - HHY - update to use MATLAB findpeaks() instead of
 %       findLegReversals() to find max and min position
 %   6/22/23 - HHY - add phase info
+%   6/23/23 - HHY - when redoing move/not-move, start from previous values
 %
 function extractLegStepsFromPData()
 
@@ -150,6 +151,10 @@ function extractLegStepsFromPData()
         contStr = input('Rerun moving/not moving selection? y/n ', 's');
         % yes, rerun
         if (strcmpi(contStr, 'y'))
+
+            % load previous move/not move params
+            load(pDataFullPath, 'moveNotMove');
+            notMoveParams = moveNotMove.notMoveParams;
     
             % get not moving and moving indicies and bout starts/ends for
             %  leg and Fictrac
@@ -217,6 +222,7 @@ function extractLegStepsFromPData()
             intStr = input('Interactive max/min selection? y/n ', 's');
             if (strcmpi(intStr,'y'))
                 % compute max/min interactively
+                % updated 6/21/23
                 [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
                     userSelVal] = interactGetLegReversals(legTrack, ...
                     moveNotMove, legRevParams, legIDs);
@@ -258,6 +264,7 @@ function extractLegStepsFromPData()
         intStr = input('Interactive max/min selection? y/n ', 's');
         if (strcmpi(intStr,'y'))
             % compute max/min interactively
+            % updated 6/21/23 
             [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
                 userSelVal] = interactGetLegReversals(legTrack, ...
                 moveNotMove, legRevParams, legIDs);

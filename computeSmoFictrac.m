@@ -127,5 +127,7 @@ function computeSmoFictrac(pDataPath, sigmaPos, sigmaVel)
         % append this fictracSmo output struct to same pData file
         save(pDataFullPath, 'fictracSmo', '-append');
 
+        sprintf('Saved fictracSmo for %s!\n', pDataName);
+
     end
 end

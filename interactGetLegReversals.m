@@ -24,6 +24,7 @@
 %   maxWhichLeg - number indicating which leg max indicies belong to, same
 %       size & matched with maxIndsAll
 %   minWhichLeg - which legs for min indicies
+%   legRevParams - updated values
 %   userSelVal - struct array (1 element for each leg) with user selected
 %       values used for determining max and min indicies
 %       legRevParams - updated parameter values
@@ -40,8 +41,10 @@
 %       update calls to reflect new field names
 %   6/21/23 - HHY - update to use getLegReversals_1Leg() instead of
 %       findLegReversals()
+%   6/23/23 - HHY - bug fix; srnf instead of srn
 %
-function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
+function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, ...
+    legRevParams, userSelVal] = ...
     interactGetLegReversals(legTrack, moveNotMove, legRevParams, legIDs)
 
     % some parameters
@@ -81,7 +84,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
 %     lrpRanges.numPosVelFrames = [1 50];
     
     % ranges for legRevParams
-    lrpRanges.minProm = [0 0.2];
+    lrpRanges.minProm = [0 0.5];
     lrpRanges.minDist = [1 50];
     
     % preallocate userSelVal array of structs
@@ -138,12 +141,12 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
 %             legRevParamsInit);
 
         [maxInds, minInds] = getLegReversals_1Leg(...
-            legTrack.srnLegX(:,thisLegInd), ...
-            moveNotMove.notMoveInd, legRevParamsInit);
+            legTrack.srnfLegX(:,thisLegInd), ...
+            moveNotMove.legNotMoveInd, legRevParamsInit);
         
         % get leg position values for these indicies
-        initMaxVals = legTrack.srnLegX(maxInds, thisLegInd);
-        initMinVals = legTrack.srnLegX(minInds, thisLegInd);
+        initMaxVals = legTrack.srnfLegX(maxInds, thisLegInd);
+        initMinVals = legTrack.srnfLegX(minInds, thisLegInd);
         
         % get shading for not moving
         notMovingX = [moveNotMove.legNotMoveBout(:,1)'; ...
@@ -152,8 +155,8 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         notMovingXT = legTrack.t(notMovingX);
         
         % get ylimits for this leg
-        yMinLim = min(legTrack.srnLegX(:,thisLegInd)) * 1.1;
-        yMaxLim = max(legTrack.srnLegX(:,thisLegInd)) * 1.1;
+        yMinLim = min(legTrack.srnfLegX(:,thisLegInd)) * 1.1;
+        yMaxLim = max(legTrack.srnfLegX(:,thisLegInd)) * 1.1;
         
         y0 = ones(1,size(moveNotMove.legNotMoveBout,1)) * yMinLim;
         y1 = ones(1,size(moveNotMove.legNotMoveBout,1)) * yMaxLim;
@@ -166,7 +169,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
         % plot this leg
         legPosAx = subplot('Position', [0.05 0.3 0.6 0.5]);
         % leg position
-        plot(legTrack.t, legTrack.srnLegX(:,thisLegInd));
+        plot(legTrack.t, legTrack.srnfLegX(:,thisLegInd));
         hold on;
         
         % plot max - x's 
@@ -339,18 +342,18 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
 %             thisLegRevParams);
 
         [maxInds, minInds] = getLegReversals_1Leg(...
-            legTrack.srnLegX(:,thisLegInd), ...
-            moveNotMove.notMoveInd, legRevParams);
+            legTrack.srnfLegX(:,thisLegInd), ...
+            moveNotMove.legNotMoveInd, thisLegRevParams);
 
         % get leg position values for these indicies
-        maxVals = legTrack.srnLegX(maxInds, thisLegInd);
-        minVals = legTrack.srnLegX(minInds, thisLegInd);
+        maxVals = legTrack.srnfLegX(maxInds, thisLegInd);
+        minVals = legTrack.srnfLegX(minInds, thisLegInd);
 
         % plot leg position, max and min
         cla(legPosAx);
 
         % leg position
-        plot(legPosAx,legTrack.t, legTrack.srnLegX(:,thisLegInd));
+        plot(legPosAx,legTrack.t, legTrack.srnfLegX(:,thisLegInd));
         hold on;
 
         % plot max - x's 
@@ -436,14 +439,14 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
                             legTrack.t, thisX);
                     case 'Add Max'
                         [thisInd, maxInds] = addIndAtSelX(maxInds, ...
-                            legTrack.t, legTrack.srnLegX(:,thisLegInd), ...
+                            legTrack.t, legTrack.srnfLegX(:,thisLegInd), ...
                             thisX, 'max');
                     case 'Delete Min'
                         [thisInd, minInds] = rmvIndAtSelX(minInds, ...
                             legTrack.t, thisX);
                     case 'Add Min'
                         [thisInd, minInds] = addIndAtSelX(minInds, ...
-                            legTrack.t, legTrack.srnLegX(:,thisLegInd), ...
+                            legTrack.t, legTrack.srnfLegX(:,thisLegInd), ...
                             thisX, 'min'); 
                 end
                 
@@ -451,14 +454,14 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg, userSelVal] = ...
                 theseInd = [theseInd; thisInd];
                 
                 % update max and min vals
-                maxVals = legTrack.srnLegX(maxInds, thisLegInd);
-                minVals = legTrack.srnLegX(minInds, thisLegInd);
+                maxVals = legTrack.srnfLegX(maxInds, thisLegInd);
+                minVals = legTrack.srnfLegX(minInds, thisLegInd);
             
                 % update plot to add/remove this max/min        
                 cla(legPosAx);
 
                 % leg position
-                plot(legPosAx,legTrack.t, legTrack.srnLegX(:,thisLegInd));
+                plot(legPosAx,legTrack.t, legTrack.srnfLegX(:,thisLegInd));
                 hold on;
 
                 % plot max - x's 
