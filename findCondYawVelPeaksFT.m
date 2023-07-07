@@ -37,8 +37,8 @@ function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
     findCondYawVelPeaksFT(fictracSmo, cond, moveNotMove, rightTurn)
 
     % compensate for bias in fly's yaw and slide velocities
-    fictracSmo.yawAngVel = fictracSmo.yawAngVel - fictracSmo.angVelBias;
-    fictracSmo.slideVel = fictracSmo.slideVel - fictracSmo.slideVelBias;
+%     fictracSmo.yawAngVel = fictracSmo.yawAngVel - fictracSmo.angVelBias;
+%     fictracSmo.slideVel = fictracSmo.slideVel - fictracSmo.slideVelBias;
 
     % check if we're extracting right or left turns
     if (rightTurn)
@@ -71,6 +71,8 @@ function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
             if (contains(cond.whichParam{i}, 'angVel', 'IgnoreCase',true) || ...
                     contains(cond.whichParam{i}, 'slideVel', 'IgnoreCase',true))
                 thisCond = -1 * fictracSmo.(cond.whichParam{i});
+            else
+                thisCond = fictracSmo.(cond.whichParam{i});
             end
         end
          
@@ -118,16 +120,22 @@ function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
     pkStartInd(rmvInd) = [];
     pkEndInd(rmvInd) = [];
 
+    initSizeStart = length(pkStartInd);
+
     % remove any peaks whose edges fall within dropInd
-    [pkStartInd, startRmvInd] = setdiff(pkStartInd, fictracSmo.dropInd, ...
+    [pkStartInd, startNotRmvInd] = setdiff(pkStartInd, fictracSmo.dropInd, ...
         'stable');
+    startRmvInd = setxor(1:initSizeStart, startNotRmvInd);
     pkInds(startRmvInd) = [];
     pkEndInd(startRmvInd) = [];
 
-    [pkEndInd, endRmvInd] = setdiff(pkEndInd, fictracSmo.dropInd, ...
+    initSizeEnd = length(pkEndInd);
+    [pkEndInd, endNotRmvInd] = setdiff(pkEndInd, fictracSmo.dropInd, ...
         'stable');
+    endRmvInd = setxor(1:initSizeEnd, endNotRmvInd);
     pkInds(endRmvInd) = [];
     pkStartInd(endRmvInd) = [];
+
 
 
 
@@ -173,12 +181,14 @@ function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
         [pkInds, keepInd] = setdiff(pkInds,notKeepInd,'stable');
         pkStartInd = pkStartInd(keepInd);
         pkEndInd = pkEndInd(keepInd);
+        pkInds = pkInds(keepInd);
     end
 
     % loop through all peaks and check that the bout meets the duration
     %  requirements
     % initialize to keep track of peaks to remove
     rmInd = []; 
+
     for i = 1:length(pkInds)
 
         thisBoutStartT = fictracSmo.t(pkStartInd(i));

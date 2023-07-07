@@ -48,7 +48,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
             'MinPeakDistance', legRevParams.minDist);
         % remove all ind from when fly not moving
         % logical, true when maxInd is also not moving
-        maxNotMovLog = ismember(maxPeakInd, moveNotMove.notMoveInd);
+        maxNotMovLog = ismember(maxPeakInd, moveNotMove.legNotMoveInd);
         % remove all not moving maxInd
         maxInds = maxPeakInd(~maxNotMovLog);
 
@@ -58,7 +58,7 @@ function [maxIndsAll, minIndsAll, maxWhichLeg, minWhichLeg] = ...
             'MinPeakDistance', legRevParams.minDist);
         % remove all ind from when fly not moving
         % logical, true when maxInd is also not moving
-        minNotMovLog = ismember(minPeakInd, moveNotMove.notMoveInd);
+        minNotMovLog = ismember(minPeakInd, moveNotMove.legNotMoveInd);
         % remove all not moving maxInd
         minInds = minPeakInd(~minNotMovLog);
 

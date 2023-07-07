@@ -32,6 +32,7 @@
 % UPDATED:
 %   10/22/21 - HHY
 %   10/26/21 - HHY - add correction for when calculated phase <0 or >360
+%   6/26/23 - HHY - bug fix for correction of phase <0 or >360
 %
 function legPhase = getLegPhaseFromSteps(legStepInds, stepWhichLeg, ...
     legXPos, notMoveBout)
@@ -177,76 +178,79 @@ function legPhase = getLegPhaseFromSteps(legStepInds, stepWhichLeg, ...
         % find indices where phase invalid
         invalInd = find((legPhase(:,i) < START_VAL) | ...
             (legPhase(:,i) > END_VAL));
-        
-        % convert indices into bouts (find times when single invalid pt vs
-        %  many in a row)
-        % returned indices are into legPhase
-        [invalStartInd, invalEndInd, invalDur] = findBouts(invalInd);
-        
-        % for all times when it's a single invalid point, correct by
-        %  converting to mean of +/- numMeanPts points
-        % for times when it's multiple invalid points in a row, correct by
-        %  converting to START_VAL or END_VAL
-        % loop through all invalid bouts
-        numMeanPts = 2; % use this number of points before and after
-        for k = 1:length(invalDur)
-            % single invalid point
-            if (invalDur(k) == 0)
-                % get points before and after this point
-                bfInds = ...
-                    (invalStartInd(k)-numMeanPts):(invalStartInd(k)-1);
-                aftInds = ...
-                    (invalStartInd(k)+1):(invalStartInd(k)+numMeanPts);
-                
-                % check that before and after inds are valid
-                if (any(bfInds < 1))
-                    bfInds = [];
-                end
-                
-                if(any(aftInds > numFrames))
-                    aftInds = [];
-                end
-                
-                % get values of points before and after
-                bfVals = legPhase(bfInds,i);
-                aftVals = legPhase(aftInds,i);
-                
-                % check that phases of before and after points are valid
-                %  (not NaN)
-                if (any(isnan(bfVals)))
-                    bfVals = [];
-                end
-                
-                if(any(isnan(aftVals)))
-                    aftVals = [];
-                end
-                
-                % get mean phase of points
-                %  if empty vector, will be NaN (keep that)
-                meanPtVal = mean([bfVals; aftVals]);
-                
-                % replace invalid point with mean val
-                legPhase(invalStartInd(k),i) = meanPtVal;
+
+        if ~isempty(invalInd)
             
-            % multiple invalid points in a row
-            else
-                % get mean value of invalid points in bout
-                meanInvalVal = mean(...
-                    legPhase(invalStartInd(k):invalEndInd(k),i));
+            % convert indices into bouts (find times when single invalid pt vs
+            %  many in a row)
+            % returned indices are into legPhase
+            [invalStartInd, invalEndInd, invalDur] = findBouts(invalInd);
+            
+            % for all times when it's a single invalid point, correct by
+            %  converting to mean of +/- numMeanPts points
+            % for times when it's multiple invalid points in a row, correct by
+            %  converting to START_VAL or END_VAL
+            % loop through all invalid bouts
+            numMeanPts = 2; % use this number of points before and after
+            for k = 1:length(invalDur)
+                % single invalid point
+                if (invalDur(k) == 0)
+                    % get points before and after this point
+                    bfInds = ...
+                        (invalStartInd(k)-numMeanPts):(invalStartInd(k)-1);
+                    aftInds = ...
+                        (invalStartInd(k)+1):(invalStartInd(k)+numMeanPts);
+                    
+                    % check that before and after inds are valid
+                    if (any(bfInds < 1))
+                        bfInds = [];
+                    end
+                    
+                    if(any(aftInds > numFrames))
+                        aftInds = [];
+                    end
+                    
+                    % get values of points before and after
+                    bfVals = legPhase(bfInds,i);
+                    aftVals = legPhase(aftInds,i);
+                    
+                    % check that phases of before and after points are valid
+                    %  (not NaN)
+                    if (any(isnan(bfVals)))
+                        bfVals = [];
+                    end
+                    
+                    if(any(isnan(aftVals)))
+                        aftVals = [];
+                    end
+                    
+                    % get mean phase of points
+                    %  if empty vector, will be NaN (keep that)
+                    meanPtVal = mean([bfVals; aftVals]);
+                    
+                    % replace invalid point with mean val
+                    legPhase(invalStartInd(k),i) = meanPtVal;
                 
-                % replace these invalid points with START_VAL or END_VAL,
-                %  depending on which direction they're invalid
-                if (meanInvalVal > END_VAL)
-                    legPhase(invalStartInd(k):invalEndInd(k),i) = ...
-                        repmat(END_VAL, invalDur(k) + 1, 1);
-                elseif (meanInvalVal < START_VAL)
-                    legPhase(invalStartInd(k):invalEndInd(k),i) = ...
-                        repmat(START_VAL, invalDur(k) + 1, 1);
-                else % should never get here, but NaN if weird
-                    legPhase(invalStartInd(k):invalEndInd(k),i) = ...
-                        NaN(invalDur(k) + 1, 1);
-                end
-            end    
+                % multiple invalid points in a row
+                else
+                    % get mean value of invalid points in bout
+                    meanInvalVal = mean(...
+                        legPhase(invalStartInd(k):invalEndInd(k),i));
+                    
+                    % replace these invalid points with START_VAL or END_VAL,
+                    %  depending on which direction they're invalid
+                    if (meanInvalVal > END_VAL)
+                        legPhase(invalStartInd(k):invalEndInd(k),i) = ...
+                            repmat(END_VAL, invalDur(k) + 1, 1);
+                    elseif (meanInvalVal < START_VAL)
+                        legPhase(invalStartInd(k):invalEndInd(k),i) = ...
+                            repmat(START_VAL, invalDur(k) + 1, 1);
+                    else % should never get here, but NaN if weird
+                        legPhase(invalStartInd(k):invalEndInd(k),i) = ...
+                            NaN(invalDur(k) + 1, 1);
+                    end
+                end    
+            end
         end
         
         

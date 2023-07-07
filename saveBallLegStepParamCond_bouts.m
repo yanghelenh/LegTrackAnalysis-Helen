@@ -165,8 +165,8 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         end
 
         % convert legTrack.refPts to legIDs
-        legIDs.ind = legTrack.refPts.legInd;
-        legIDs.name = legTrack.refPts.legNames;
+        legIDs.ind = legSteps.legIDs.ind;
+        legIDs.name = legSteps.legIDs.names;
 
         % get matching b/w corresponding left and right legs
         rightLegInd = find(contains(legIDs.name, 'R'));
@@ -368,7 +368,7 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
             % concatenate right and left
             oneParamVals = cat(4, oneParamValsRight, oneParamValsLeft);
             oneParamStVals = cat(3, oneParamStValsRight, oneParamStValsLeft);
-            oneParamSwVals = cat(3, oneParamSwValsRight, oneParamSwValsRight);
+            oneParamSwVals = cat(3, oneParamSwValsRight, oneParamSwValsLeft);
 
             % add to output matrices
             selLegSteps.(stepParamNames{j}) = cat(4, ...
