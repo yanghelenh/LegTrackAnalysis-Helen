@@ -97,7 +97,7 @@ function extractLegStepsFromPData()
     % default parameters for extracting peaks - max/min position
     %  determination
     legRevParams.minProm = 0.08; % MinPeakProminence of findpeaks
-    legRevParams.minDist = 10; % MinPeakDistance of findpeaks
+    legRevParams.minDist = 12; % MinPeakDistance of findpeaks
 
 
     % prompt user for pData file; defaults to folder containing pData files
