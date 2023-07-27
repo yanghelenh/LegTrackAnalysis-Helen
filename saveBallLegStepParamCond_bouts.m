@@ -55,6 +55,10 @@
 %       swingParamSEM - as stanceParamSEM, but for swing
 %       swingParamN - as stanceParamN, but for swing
 %       numBouts - total number of bouts (max n for stepParam (if no NaNs))
+%       boutPeakVel - struct for velocity values at each bout peak
+%           yaw - vector of length numBouts for peak yaw velocity
+%           fwd - vector of length numBouts for peak forward velocity
+%           slide - vector of length numBouts for peak lateral velocity
 %       pDataFiles - struct of info on pData files
 %           names - name of each pData file with at least 1 valid step, as
 %               cell array
@@ -67,6 +71,7 @@
 %
 % UPDATED:
 %   6/22/23 - HHY
+%   7/21/23 - HHY - add boutPeakVel to output
 %
 function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
     postStimExclDur, pDataPath, saveFilePath, saveFileName)
@@ -104,6 +109,10 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         selStanceParams.(stepParamNames{i}) = [];
         selSwingParams.(stepParamNames{i}) = [];
     end
+
+    boutPeakVel.yaw = [];
+    boutPeakVel.fwd = [];
+    boutPeakVel.slide = [];
 
     pkSwingStance = [];
 
@@ -239,6 +248,21 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
 
         % update counter
         countNumBouts = countNumBouts + thisNumBouts;
+
+        % get FicTracSmo values at bout peaks
+        boutPeakVel.yaw = [boutPeakVel.yaw; ...
+            fictracSmo.yawAngVel(rightPeakInd)];
+        boutPeakVel.yaw = [boutPeakVel.yaw; ...
+            fictracSmo.yawAngVel(leftPeakInd)];
+        boutPeakVel.fwd = [boutPeakVel.fwd; ...
+            fictracSmo.fwdVel(rightPeakInd)];
+        boutPeakVel.fwd = [boutPeakVel.fwd; ...
+            fictracSmo.fwdVel(leftPeakInd)];
+        boutPeakVel.slide = [boutPeakVel.slide; ...
+            fictracSmo.slideVel(rightPeakInd)];
+        boutPeakVel.slide = [boutPeakVel.slide; ...
+            fictracSmo.slideVel(leftPeakInd)];
+
 
         
         % get indices for steps aligned to bouts
@@ -511,6 +535,6 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         'selSwingParams', 'pkSwingStance', 'stanceParamMeans', ...
         'stanceParamStd', 'stanceParamSEM', 'stanceParamN', ...
         'swingParamMeans', 'swingParamStd', 'swingParamSEM', ...
-        'swingParamN', 'numBouts', 'pDataFiles', 'cond', 'maxNumSteps',...
-        '-v7.3');
+        'swingParamN', 'numBouts', 'boutPeakVel', 'pDataFiles', ...
+        'cond', 'maxNumSteps', '-v7.3');
 end
