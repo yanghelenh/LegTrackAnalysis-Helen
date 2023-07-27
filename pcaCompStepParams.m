@@ -7,17 +7,19 @@
 %
 % INPUTS:
 %   set1 - struct of first set of step params
-%     params - cell array of step param names, 1 per variable
-%     legs - cell array of leg names (R1-3, L1-3), 1 per variable
-%     whichStep - which step (0 for at yaw peak, neg for before, pos for
-%       after)
-%     whichPhase - which phase ('swing' or 'stance')
+%     name - string for name of this set
 %     params - cell array of step param names, 1 per variable
 %     legs - cell array of leg names (R1-3, L1-3), 1 per variable
 %     whichStep - which step (0 for at yaw peak, neg for before, pos for
 %       after)
 %     whichPhase - which phase ('swing' or 'stance')
 %   set2 - struct of second set of step params
+%     name - string for name of this set
+%     params - cell array of step param names, 1 per variable
+%     legs - cell array of leg names (R1-3, L1-3), 1 per variable
+%     whichStep - which step (0 for at yaw peak, neg for before, pos for
+%       after)
+%     whichPhase - which phase ('swing' or 'stance')
 %   datDir - full path to input
 %   saveFileName - name of output file
 %   saveFileDir - full path to directory to save output file
