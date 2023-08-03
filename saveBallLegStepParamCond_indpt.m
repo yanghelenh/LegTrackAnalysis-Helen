@@ -41,9 +41,10 @@
 %
 % UPDATED:
 %   7/5/23 - HHY
+%   8/1/23 - HHY - didn't actually remove stimulation periods, fix
 %
-function saveBallLegStepParamCond_indpt(cond, pDataPath, saveFilePath, ...
-    saveFileName)
+function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
+    pDataPath, saveFilePath, saveFileName)
 
     % names of all step parameters to save
     stepParamNames = {'stepLengths', 'stepXLengths', 'stepWhichLeg', ...
@@ -113,9 +114,28 @@ function saveBallLegStepParamCond_indpt(cond, pDataPath, saveFilePath, ...
             continue;
         end
 
-        % load legTrack and moveNotMove from pData
-        load(pDataFullPath, 'legTrack', 'moveNotMove', 'fictracSmo', ...
-            'legSteps', 'stanceStepParams', 'swingStepParams');
+        % load variables from pData
+        % check if opto or iInj trial, load those as appropriate
+        % also, save opto or iInj times as stim times; no stim, empty
+        if (any(strcmpi(pDatVarsNames, 'opto'))) % opto stim
+            load(pDataFullPath, 'legTrack', 'moveNotMove', 'fictracSmo', ...
+                'legSteps', 'stanceStepParams', 'swingStepParams', 'opto');
+
+            stimStartTimes = opto.stimStartTimes;
+            stimEndTimes = opto.stimEndTimes;
+        elseif (any(strcmpi(pDatVarsNames, 'iInj'))) % current inj
+            load(pDataFullPath, 'legTrack', 'moveNotMove', 'fictracSmo', ...
+                'legSteps', 'stanceStepParams', 'swingStepParams', 'iInj');
+
+            stimStartTimes = iInj.startTimes;
+            stimEndTimes = iInj.endTimes;
+        else % no stimulation
+            load(pDataFullPath, 'legTrack', 'moveNotMove', 'fictracSmo', ...
+                'legSteps', 'stanceStepParams', 'swingStepParams');
+
+            stimStartTimes = [];
+            stimEndTimes = [];
+        end
 
         % convert legTrack.refPts to legIDs
         legIDs.ind = legSteps.legIDs.ind;
@@ -197,6 +217,22 @@ function saveBallLegStepParamCond_indpt(cond, pDataPath, saveFilePath, ...
             btLeftValInd(moveNotMove.ftNotMoveInd) = false;
         else
             btValInd(moveNotMove.ftNotMoveInd) = false;
+        end
+
+        % filter for not during stimulation 
+        for j = 1:length(stimStartTimes)
+            thisStartTime = stimStartTimes(j);
+            thisEndTime = stimEndTimes(j) + postStimExclDur;
+
+            exclInd = find((fictracSmo.t >= thisStartTime) & ...
+                (fictracSmo.t <= thisEndTime));
+
+            if(sepLR)
+                btRightValInd(exclInd) = false;
+                btLeftValInd(exclInd) = false;
+            else
+                btValInd(exclInd) = false;
+            end
         end
 
 

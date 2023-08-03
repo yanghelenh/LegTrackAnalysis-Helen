@@ -25,12 +25,28 @@
 %   saveFileDir - full path to directory to save output file
 %
 % OUTPUTS:
-%   none, but saves to output file
+%   none, but saves to output file with following variables:
+%     set1 - struct of first set of step params, from INPUT, with 
+%         additional fields:
+%       coeff - PCA coefficients
+%       score - PC values (size numBouts x num dimensions)
+%       latent - PCA latent
+%       tsquared - PCA tsquared
+%       explained - PCA variance explained
+%       mu - mean for each dimension
+%     set2 - struct of second set of step params, from INPUT, with same 
+%         additional fields as set 1
+%     boutPeakVel - peak velocity of each bout, matched to PCs
+%       yaw
+%       fwd
+%       lat/slide
+%
 %
 % CREATED: 7/27/23 - HHY
 %
 % UPDATED:
 %   7/27/23 - HHY
+%   8/2/23 - HHY - update comments
 %
 function pcaCompStepParams(set1, set2, datDir, saveFileName, saveFileDir)
 
@@ -44,7 +60,8 @@ function pcaCompStepParams(set1, set2, datDir, saveFileName, saveFileDir)
     % load data from cond_bout file
     fullFilePath = [condBoutPath filesep condBoutFName];
 
-    load(fullFilePath, 'selStanceParams', 'selSwingParams', 'maxNumSteps');
+    load(fullFilePath, 'selStanceParams', 'selSwingParams', ...
+        'boutPeakVel', 'maxNumSteps');
 
     % number of step parameter variables
     set1NumVars = length(set1.params);
@@ -125,7 +142,21 @@ function pcaCompStepParams(set1, set2, datDir, saveFileName, saveFileDir)
     indivTurns(rmvTurnInd, :) = [];
 
     % remove outliers
-    indivTurns = rmoutliers(indivTurns);
+    [indivTurns, rmvInd] = rmoutliers(indivTurns);
+%     rmvInd = [];
+
+    % get bout peak vel with these turns removed
+    boutPeakVel.yaw(rmvTurnInd) = [];
+    boutPeakVel.yaw(rmvInd) = [];
+    boutPeakVel.fwd(rmvTurnInd) = [];
+    boutPeakVel.fwd(rmvInd) = [];
+    if (isfield(boutPeakVel,'lat'))
+        boutPeakVel.lat(rmvTurnInd) = [];
+        boutPeakVel.lat(rmvInd) = [];
+    elseif (isfield(boutPeakVel,'slide'))
+        boutPeakVel.slide(rmvTurnInd) = [];
+        boutPeakVel.slide(rmvInd) = [];
+    end
 
     
     % separate indivTurns matrix into two matricies, set1 and set2
@@ -143,7 +174,7 @@ function pcaCompStepParams(set1, set2, datDir, saveFileName, saveFileDir)
     % save output
     saveFileFullPath = [saveFileDir filesep saveFileName '.mat'];
 
-    save(saveFileFullPath, 'set1', 'set2', '-v7.3');
+    save(saveFileFullPath, 'set1', 'set2', 'boutPeakVel', '-v7.3');
 
     % print some outputs to screen
     fprintf('Set 1, PC1, variance explained = %.2f%%\n', set1.explained(1));

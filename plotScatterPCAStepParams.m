@@ -6,6 +6,15 @@
 %
 % INPUTS:
 %   datDir - path to folder containing pcaCompStepParams() output files
+%   plotType - string for type of plot to make
+%       'binScatter' - binned scatterplot, counts
+%       'scatter' - regular scatterplot
+%       'peakFwd' - scatter colored by bout peak forward velocity
+%       'peakYaw' - scatter colored by  bout peak yaw velocity
+%       'peakLat' - scatter colored by peak lateral velocity, free walk
+%       'peakSlide' - scatter colored by peak slide velocity, ball walk
+%   numBins - for 'binScatter' type plot, number of bins per dimension
+%   xyLine - boolean for whether to plot y = x line
 %
 % OUTPUTS:
 %   none, but generates plot
@@ -15,7 +24,7 @@
 % UPDATED:
 %   7/23/23 - HHY
 %
-function plotScatterPCAStepParams(datDir, numBins)
+function plotScatterPCAStepParams(datDir, plotType, numBins, xyLine)
 
     % prompt user to select cond_bout() file
     [condBoutFName, condBoutPath] = uigetfile('*.mat', ...
@@ -24,26 +33,62 @@ function plotScatterPCAStepParams(datDir, numBins)
     % load data from cond_bout file
     fullFilePath = [condBoutPath filesep condBoutFName];
 
-    load(fullFilePath, 'set1', 'set2');
+    load(fullFilePath, 'set1', 'set2', 'boutPeakVel');
 
     figure;
 
     % scatterplot all turn bouts in PC space
-%     scatter(set1.score(:,1), set2.score(:,1), 'filled', ...
-%         'MarkerFaceAlpha', 0.8, 'MarkerEdgeAlpha', 0.3);
-
-    binscatter(set1.score(:,1), set2.score(:,1), numBins);
+    if (strcmpi(plotType, 'binScatter'))
+        binscatter(set1.score(:,1), set2.score(:,1), numBins);
+    elseif (strcmpi(plotType, 'peakFwd'))
+        % convert to mm/s if needed
+        if (median(boutPeakVel.fwd) < 1)
+            fwdVel = boutPeakVel.fwd * 1000;
+        else
+            fwdVel = boutPeakVel.fwd;
+        end
+        scatter(set1.score(:,1), set2.score(:,1), [], ...
+            fwdVel, 'filled', ...
+            'MarkerFaceAlpha', 0.8, 'MarkerEdgeAlpha', 0.3);
+        colormap(gca, 'cool');
+%       caxis([5 10]);
+        colorbar;
+    elseif (strcmpi(plotType, 'peakYaw'))
+        scatter(set1.score(:,1), set2.score(:,1), [], ...
+            abs(boutPeakVel.yaw), 'filled', ...
+            'MarkerFaceAlpha', 0.8, 'MarkerEdgeAlpha', 0.3);
+        colormap(gca, 'cool');
+        caxis([0 300]);
+        colorbar;
+    elseif (strcmpi(plotType, 'peakLat'))
+        scatter(set1.score(:,1), set2.score(:,1), [], ...
+            abs(boutPeakVel.lat * 1000), 'filled', ...
+            'MarkerFaceAlpha', 0.8, 'MarkerEdgeAlpha', 0.3);
+        colormap(gca, 'cool');
+        colorbar;
+    elseif (strcmpi(plotType, 'peakSlide'))
+        scatter(set1.score(:,1), set2.score(:,1), [], ...
+            abs(boutPeakVel.slide), 'filled', ...
+            'MarkerFaceAlpha', 0.8, 'MarkerEdgeAlpha', 0.3);
+        colormap(gca, 'cool');
+        colorbar;
+    else
+        scatter(set1.score(:,1), set2.score(:,1), 'filled', ...
+            'MarkerFaceAlpha', 0.8, 'MarkerEdgeAlpha', 0.3);
+    end
 
     hold on;
 
-    % plot y = x line
+    % plot reference lines
     xLimits = xlim;
     yLimits = ylim;
 
     minPt = min([xLimits(1) yLimits(1)]);
     maxPt = max([xLimits(2) yLimits(2)]);
 
-    plot([minPt maxPt], [minPt maxPt], 'k', 'LineWidth', 2);
+    if (xyLine)
+        plot([minPt maxPt], [minPt maxPt], 'k', 'LineWidth', 2);
+    end
 
     % plot x = 0 line
     line([0 0], [minPt maxPt], 'Color', 'k');
