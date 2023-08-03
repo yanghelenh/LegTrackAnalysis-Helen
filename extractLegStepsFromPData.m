@@ -29,6 +29,7 @@
 %       findLegReversals() to find max and min position
 %   6/22/23 - HHY - add phase info
 %   6/23/23 - HHY - when redoing move/not-move, start from previous values
+%   8/3/23 - HHY - update to extract interpolated steps
 %
 function extractLegStepsFromPData()
 
@@ -326,8 +327,13 @@ function extractLegStepsFromPData()
     % get phase differences b/w legs
     phaseDiffs = getLegPhaseDiffs(legPhase, legIDs, 'degrees');
 
+    % get interpolated step parameters
+    legStepsCont = getEnvelopeStepParams(legTrack, legSteps, ...
+        moveNotMove);
+
     % update pData file
     save(pDataFullPath, 'legSteps', 'stanceStepParams', ...
-        'swingStepParams', 'legPhase', 'phaseDiffs', '-append');
+        'swingStepParams', 'legPhase', 'phaseDiffs', ...
+        'legStepsCont', '-append');
 
 end
