@@ -26,13 +26,15 @@
 %   boutPkSwingStance - numLegs x numBouts size matrix indicating whether
 %       the peak of each bout is during swing or stance for each leg (-1
 %       for swing, +1 for stance)
+%   rmInd - indices of bouts removed
 %
 % CREATED: 6/22/23 - HHY
 %
 % UPDATED:
 %   6/22/23 - HHY
+%   8/7/23 - HHY - output removed bouts ind
 %
-function [boutStepInd, boutPkSwingStance] = findBoutStepIndsBall(legSteps, ...
+function [boutStepInd, boutPkSwingStance, rmInd] = findBoutStepIndsBall(legSteps, ...
     peakTimes, boutStartTimes, boutEndTimes, legT, maxNumSteps, legIDs)
 
     % convert bout peak, start, and end times into indices on leg timescale

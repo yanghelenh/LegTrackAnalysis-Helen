@@ -72,9 +72,8 @@
 % UPDATED:
 %   6/22/23 - HHY
 %   7/21/23 - HHY - add boutPeakVel to output
-%   8/7/23 - HHY - make sure boutPeakVel accounts for removed bouts
 %
-function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
+function saveBallLegStepParamCondLRDiff_bouts(cond, maxNumSteps, ...
     postStimExclDur, pDataPath, saveFilePath, saveFileName)
 
     % names of all step parameters to save
@@ -253,6 +252,7 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
 
 
 
+        
         % get indices for steps aligned to bouts
         % right turns
         [rightStepInd, rightPkSwingStance, rightRmInd] = findBoutStepIndsBall(...
@@ -295,14 +295,18 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
 
         % preallocate
         oneParamValsRight = nan(size(rightStepInd,1), ...
-            size(rightStepInd,2), 2, size(rightStepInd,3));
-        oneParamStValsRight = nan(size(rightStepInd));
-        oneParamSwValsRight = nan(size(rightStepInd));
+            size(rightStepInd,2)/2, 2, size(rightStepInd,3));
+        oneParamStValsRight = nan(size(rightStepInd,1), ...
+            size(rightStepInd,2)/2, size(rightStepInd,3));
+        oneParamSwValsRight = nan(size(rightStepInd,1), ...
+            size(rightStepInd,2)/2, size(rightStepInd,3));
 
         oneParamValsLeft = nan(size(leftStepInd,1), ...
-            size(leftStepInd,2), 2, size(leftStepInd,3));
-        oneParamStValsLeft = nan(size(leftStepInd));
-        oneParamSwValsLeft = nan(size(leftStepInd));
+            size(leftStepInd,2)/2, 2, size(leftStepInd,3));
+        oneParamStValsLeft = nan(size(leftStepInd,1), ...
+            size(leftStepInd,2)/2, size(leftStepInd,3));
+        oneParamSwValsLeft = nan(size(leftStepInd,1), ...
+            size(leftStepInd,2)/2, size(leftStepInd,3));
 
         for j = 1:length(stepParamNames)
             thisParam = legSteps.(stepParamNames{j});
@@ -312,25 +316,33 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
             % for right turns
             % loop over all steps of bout
             for k = 1:size(rightStepInd, 1)
-                % loop over all legs
-                for l = 1:size(rightStepInd, 2)
+                % loop over all legs on one side
+                for l = 1:(size(rightStepInd, 2)/2)
                     % loop over all bouts
                     for m = 1:size(rightStepInd, 3)
-                        thisInd = rightStepInd(k,l,m);
+                        thisIpsiInd = rightStepInd(k,l,m);
+                        thisContraInd = rightStepInd(k,l + 3,m);
                         % if index is NaN, don't do anything (will keep
                         %  NaN), otherwise, put in appropriate value
-                        if ~isnan(thisInd)
+                        if (~isnan(thisIpsiInd) && ~isnan(thisContraInd))
                             % legSteps
-                            thisVals = thisParam(thisInd,:);
-                            oneParamValsRight(k,l,1,m) = thisVals(1);
-                            oneParamValsRight(k,l,2,m) = thisVals(2);
+                            thisIpsiVals = thisParam(thisIpsiInd,:);
+                            thisContraVals = thisParam(thisContraInd,:);
+
+                            oneParamValsRight(k,l,1,m) = ...
+                                thisIpsiVals(1)- thisContraVals(1);
+                            oneParamValsRight(k,l,2,m) = ...
+                                thisIpsiVals(2) - thisContraVals(2);
 
                             % stance only
                             oneParamStValsRight(k,l,m) = ...
-                                thisStParam(thisInd);
+                                thisStParam(thisIpsiInd) - ...
+                                thisStParam(thisContraInd);
+                                
                             % swing only
                             oneParamSwValsRight(k,l,m) = ...
-                                thisSwParam(thisInd);
+                                thisSwParam(thisIpsiInd) - ...
+                                thisSwParam(thisContraInd);
                         end
                     end
                 end
@@ -340,7 +352,7 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
             % loop over all steps of bout
             for k = 1:size(leftStepInd, 1)
                 % loop over all legs
-                for l = 1:size(leftStepInd, 2)
+                for l = 1:(size(leftStepInd, 2)/2)
                     % flip left and right legs
                     % r for row index, c for column index
                     [r, c] = ind2sub(size(matchedLegInd),...
@@ -356,40 +368,51 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
 
                     % loop over all bouts
                     for m = 1:size(leftStepInd, 3)
-                        thisInd = leftStepInd(k,thisLegInd,m);
+                        thisIpsiInd = leftStepInd(k,thisLegInd,m);
+                        thisContraInd = leftStepInd(k,thisLegInd-3,m);
                         % if index is NaN, don't do anything (will keep
                         %  NaN), otherwise, put in appropriate value
-                        if ~isnan(thisInd)
+                        if (~isnan(thisIpsiInd) && ~isnan(thisContraInd))
                             % invert values for left turns, for params 
                             %  where it's necessary
                             if any(strcmpi(stepParamNames{j}, flipStepParams))
                                 % legSteps
-                                thisVals = thisParam(thisInd,:);
+                                thisIpsiVals = thisParam(thisIpsiInd,:);
+                                thisContraVals = thisParam(thisIpsiInd,:);
                                 oneParamValsLeft(k,l,1,m) = ...
-                                    thisVals(1) * -1;
+                                    (thisIpsiVals(1) * -1) - ...
+                                    (thisContraVals(1) * -1);
                                 oneParamValsLeft(k,l,2,m) = ...
-                                    thisVals(2) * -1;
+                                    (thisIpsiVals(2) * -1) - ...
+                                    (thisContraVals(2) * -1);
     
                                 % stance only
                                 oneParamStValsLeft(k,l,m) = ...
-                                    thisStParam(thisInd) * -1;
+                                    (thisStParam(thisIpsiInd) * -1) - ...
+                                    (thisStParam(thisContraInd) * -1);
                                 % swing only
                                 oneParamSwValsLeft(k,l,m) = ...
-                                    thisSwParam(thisInd) * -1;
+                                    (thisSwParam(thisIpsiInd) * -1) - ...
+                                    (thisSwParam(thisContraInd) * -1);
                             else
                                 % legSteps
-                                thisVals = thisParam(thisInd,:);
+                                thisIpsiVals = thisParam(thisIpsiInd,:);
+                                thisContraVals = thisParam(thisIpsiInd,:);
                                 oneParamValsLeft(k,l,1,m) = ...
-                                    thisVals(1);
+                                    thisIpsiVals(1) - ...
+                                    thisContraVals(1);
                                 oneParamValsLeft(k,l,2,m) = ...
-                                    thisVals(2);
+                                    thisIpsiVals(2) - ...
+                                    thisContraVals(2);
     
                                 % stance only
                                 oneParamStValsLeft(k,l,m) = ...
-                                    thisStParam(thisInd);
+                                    thisStParam(thisIpsiInd) - ...
+                                    thisStParam(thisContraInd);
                                 % swing only
                                 oneParamSwValsLeft(k,l,m) = ...
-                                    thisSwParam(thisInd);
+                                    thisSwParam(thisIpsiInd) - ...
+                                    thisSwParam(thisContraInd);
                             end
                         end
                     end
