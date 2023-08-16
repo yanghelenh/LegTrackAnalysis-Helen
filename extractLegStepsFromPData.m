@@ -169,10 +169,12 @@ function extractLegStepsFromPData()
             moveNotMove.legNotMoveBout = legNotMoveBout;
             moveNotMove.legMoveInd = legMoveInd;
             moveNotMove.legMoveBout = legMoveBout;
+            moveNotMove.legT = legTrack.t;
             moveNotMove.ftNotMoveInd = ftNotMoveInd;
             moveNotMove.ftNotMoveBout = ftNotMoveBout;
             moveNotMove.ftMoveInd = ftMoveInd;
             moveNotMove.ftMoveBout = ftMoveBout;
+            moveNotMove.ftT = fictracProc.t;
             moveNotMove.notMoveParams = notMoveParams;
             
             % update pData
