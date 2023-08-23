@@ -14,6 +14,7 @@
 %   cond - pass from saveBallLegStepParamCond_bouts()
 %   moveNotMove - pData output struct
 %   rightTurn - boolean for whether to extract right turns (false = left)
+%   fwdVelCond - pass from saveBallLegStepParamCond_bouts()
 %
 % OUTPUTS:
 %   yawVelPeakTimes - vector of times corresponding to yaw
@@ -31,10 +32,13 @@
 %
 % UPDATED:
 %   6/22/23 - HHY
+%   8/22/23 - HHY - update to allow conditioning on initial and change in
+%       forward velocity
 %
 function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
     yawVelPeakInd, boutStartInd, boutEndInd] = ...
-    findCondYawVelPeaksFT(fictracSmo, cond, moveNotMove, rightTurn)
+    findCondYawVelPeaksFT(fictracSmo, cond, fwdVelCond, moveNotMove, ...
+    rightTurn)
 
     % compensate for bias in fly's yaw and slide velocities
 %     fictracSmo.yawAngVel = fictracSmo.yawAngVel - fictracSmo.angVelBias;
@@ -204,6 +208,33 @@ function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
         end
     end
     % remove any bouts that don't meet the duration criteria
+    pkInds(rmInd) = [];
+    pkStartInd(rmInd) = [];
+    pkEndInd(rmInd) = [];
+
+    % loop through all peaks and check that the bout meets the forward
+    %  velocity requirements
+    % initialize to keep track of peaks to remove
+    rmInd = [];
+    for i = 1:length(pkInds)
+        % forward velocity at start for this bout
+        thisBoutInitFwdVel = fictracSmo.fwdVel(pkStartInd(i));
+        % forward velocity at yaw peak for this bout
+        thisBoutPeakFwdVel = fictracSmo.fwdVel(pkInds(i));
+
+        % change in forward velocity
+        thisBoutChangeFwdVel = thisBoutPeakFwdVel - thisBoutInitFwdVel;
+
+        % if this bout doesn't meet forward velocity requirements, flag
+        %  this index for deletion
+        if ((thisBoutInitFwdVel < fwdVelCond.initVel(1)) || ...
+                (thisBoutInitFwdVel > fwdVelCond.initVel(2)) || ...
+                (thisBoutChangeFwdVel < fwdVelCond.change(1)) || ...
+                (thisBoutChangeFwdVel > fwdVelCond.change(2)))
+            rmInd = [rmInd i];
+        end
+    end
+    % remove any bouts that don't meet the forward velocity criteria
     pkInds(rmInd) = [];
     pkStartInd(rmInd) = [];
     pkEndInd(rmInd) = [];

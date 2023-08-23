@@ -27,10 +27,18 @@
 %           specify the min and max duration of the turning bout for it to
 %           be included
 %       minYawThresh - minimum yaw velocity to define start and end of bout
+%   fwdVelCond - struct of conditions on forward velocity to apply to
+%     turning bout
+%       initVel - 2 element vector defining [min max] range of acceptable
+%           initial forward velocities (at bout start)
+%       change - 2 element vector defining [min max] range of acceptable
+%           changes in forward velocity, peak - start 
 %   maxNumSteps - number of steps to each side of peak to consider as part
 %       of bout (max bout length is this x2 + 1)
 %   postStimExclDur - additional time, in sec, after stimulation (opto or 
 %       iInj to exclude turning bouts from overlapping with
+%   pDataFNames - cell array of pData file names or [] if select through
+%       GUI
 %   pDataPath - full path to pData directory
 %   saveFilePath - directory in which to save output file
 %   saveFileName - name of output file, without .mat part
@@ -59,6 +67,14 @@
 %           yaw - vector of length numBouts for peak yaw velocity
 %           fwd - vector of length numBouts for peak forward velocity
 %           slide - vector of length numBouts for peak lateral velocity
+%       boutStartVel - struct for velocity values at each bout start
+%           yaw - vector of length numBouts for start yaw velocity
+%           fwd - vector of length numBouts for start forward velocity
+%           slide - vector of length numBouts for start lateral velocity
+%       boutEndVel - struct for velocity values at each bout end
+%           yaw - vector of length numBouts for end yaw velocity
+%           fwd - vector of length numBouts for end forward velocity
+%           slide - vector of length numBouts for end lateral velocity
 %       pDataFiles - struct of info on pData files
 %           names - name of each pData file with at least 1 valid step, as
 %               cell array
@@ -73,9 +89,11 @@
 %   6/22/23 - HHY
 %   7/21/23 - HHY - add boutPeakVel to output
 %   8/7/23 - HHY - make sure boutPeakVel accounts for removed bouts
+%   8/22/23 - HHY - add conditioning for initial forward velocity and
+%       change in forward velocity. Add boutStartVel and boutEndVel outputs
 %
-function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
-    postStimExclDur, pDataPath, saveFilePath, saveFileName)
+function saveBallLegStepParamCond_bouts(cond, fwdVelCond, maxNumSteps, ...
+    postStimExclDur, pDataFNames, pDataPath, saveFilePath, saveFileName)
 
     % names of all step parameters to save
     stepParamNames = {'stepLengths', 'stepXLengths',...
@@ -90,8 +108,12 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
     circStepParams = {'stepDirections'};
 
     % prompt user to select pData files
-    [pDataFNames, pDataDirPath] = uigetfile('*.mat', ...
-        'Select pData files', pDataPath, 'MultiSelect', 'on');
+    if isempty(pDataFNames)
+        [pDataFNames, pDataDirPath] = uigetfile('*.mat', ...
+            'Select pData files', pDataPath, 'MultiSelect', 'on');
+    else
+        pDataDirPath = pDataPath;
+    end
     
     % if only 1 pData file selected, not cell array; make sure loop still
     %  works 
@@ -114,6 +136,14 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
     boutPeakVel.yaw = [];
     boutPeakVel.fwd = [];
     boutPeakVel.slide = [];
+
+    boutStartVel.yaw = [];
+    boutStartVel.fwd = [];
+    boutStartVel.slide = [];
+
+    boutEndVel.yaw = [];
+    boutEndVel.fwd = [];
+    boutEndVel.slide = [];
 
     pkSwingStance = [];
 
@@ -193,11 +223,13 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         % get yaw velocity peaks for right turns
         [rightPeakTimes, rightStartTimes, rightEndTimes, ...
             rightPeakInd, rightStartInd, rightEndInd] = ...
-            findCondYawVelPeaksFT(fictracSmo, cond, moveNotMove, true);
+            findCondYawVelPeaksFT(fictracSmo, cond, fwdVelCond, ...
+            moveNotMove, true);
         % get yaw velocity peaks for left turns
         [leftPeakTimes, leftStartTimes, leftEndTimes, ...
             leftPeakInd, leftStartInd, leftEndInd] = ...
-            findCondYawVelPeaksFT(fictracSmo, cond, moveNotMove, false);
+            findCondYawVelPeaksFT(fictracSmo, cond, fwdVelCond,...
+            moveNotMove, false);
 
         % remove turning bouts that overlap with stimulation bouts
         if (~isempty(stimStartTimes)) % only run on those with stimulation
@@ -268,6 +300,10 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         % remove bouts
         rightPeakInd(rightRmInd) = [];
         leftPeakInd(leftRmInd) = [];
+        rightStartInd(rightRmInd) = [];
+        leftStartInd(leftRmInd) = [];
+        rightEndInd(rightRmInd) = [];
+        leftEndInd(leftRmInd) = [];
 
         % get FicTracSmo values at bout peaks
         boutPeakVel.yaw = [boutPeakVel.yaw; ...
@@ -283,6 +319,33 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         boutPeakVel.slide = [boutPeakVel.slide; ...
             fictracSmo.slideVel(leftPeakInd)];
 
+        % get FicTracSmo values at bout starts
+        boutStartVel.yaw = [boutStartVel.yaw; ...
+            fictracSmo.yawAngVel(rightStartInd)];
+        boutStartVel.yaw = [boutStartVel.yaw; ...
+            fictracSmo.yawAngVel(leftStartInd)];
+        boutStartVel.fwd = [boutStartVel.fwd; ...
+            fictracSmo.fwdVel(rightStartInd)];
+        boutStartVel.fwd = [boutStartVel.fwd; ...
+            fictracSmo.fwdVel(leftStartInd)];
+        boutStartVel.slide = [boutStartVel.slide; ...
+            fictracSmo.slideVel(rightStartInd)];
+        boutStartVel.slide = [boutStartVel.slide; ...
+            fictracSmo.slideVel(leftStartInd)];
+
+        % get FicTracSmo values at bout ends
+        boutEndVel.yaw = [boutEndVel.yaw; ...
+            fictracSmo.yawAngVel(rightEndInd)];
+        boutEndVel.yaw = [boutEndVel.yaw; ...
+            fictracSmo.yawAngVel(leftEndInd)];
+        boutEndVel.fwd = [boutEndVel.fwd; ...
+            fictracSmo.fwdVel(rightEndInd)];
+        boutEndVel.fwd = [boutEndVel.fwd; ...
+            fictracSmo.fwdVel(leftEndInd)];
+        boutEndVel.slide = [boutEndVel.slide; ...
+            fictracSmo.slideVel(rightEndInd)];
+        boutEndVel.slide = [boutEndVel.slide; ...
+            fictracSmo.slideVel(leftEndInd)];
 
         % peak swing/stance call, merge across legs
         thisPkSwingStance = cat(2, rightPkSwingStance, leftPkSwingStance);
@@ -543,5 +606,6 @@ function saveBallLegStepParamCond_bouts(cond, maxNumSteps, ...
         'stanceParamStd', 'stanceParamSEM', 'stanceParamN', ...
         'swingParamMeans', 'swingParamStd', 'swingParamSEM', ...
         'swingParamN', 'numBouts', 'boutPeakVel', 'pDataFiles', ...
-        'cond', 'maxNumSteps', '-v7.3');
+        'cond', 'fwdVelCond', 'maxNumSteps', 'boutStartVel', ...
+        'boutEndVel', '-v7.3');
 end
