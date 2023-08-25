@@ -1,8 +1,8 @@
-% getSpikerateFromBouts.m
+% getFictracFromBouts.m
 %
-% Helper function for saveLegStepParamCond_bouts() that takes in indices of
-%  yaw velocity peaks (peak, start, and end) and returns the leg X and Y
-%  positions aligned to the velocity peak
+% Helper function for saveSpikerate_bouts() that takes in indices of
+%  yaw velocity peaks (peak, start, and end) and returns FicTrac values
+%  aligned to the velocity peak
 % To allow averaging over different bouts and the inconsistent frame rate,
 %  interpolate to specified frame rate
 %
@@ -21,10 +21,11 @@
 %       aligned to yaw velocity peak
 %   t - time vector for positions, interpolated
 %
-% CREATED: 5/12/23 - HHY
+% CREATED: 7/17/23 - HHY
 %
 % UPDATED:
-%   5/14/23 - HHY
+%   7/17/23 - HHY
+%   8/23/23 - HHY - fix comments
 %
 function [fictracVal, t] = getFictracFromBouts(fictracProc, whichParam, ...
     spikerateParams, peakInd, boutStartInd, boutEndInd)

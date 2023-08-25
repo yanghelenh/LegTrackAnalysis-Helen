@@ -1,7 +1,7 @@
 % findYawVelPeaksFT.m
 %
-% Helper function for saveBallLegStepParamCond_bouts() that takes in
-%  fictracSmo, cond, and moveNotMove and returns times for valid yaw
+% Helper function for saveSpikerate_bouts() that takes in
+%  fictracSmo, and moveNotMove and returns times for valid yaw
 %  velocity peaks as well as start/end times for corresponding bouts.
 % Boolean for whether to extract right or left turns
 % 
@@ -11,7 +11,10 @@
 %
 % INPUTS:
 %   fictracSmo - pData output struct, from computeSmoFictrac()
-%   cond - pass from saveBallLegStepParamCond_bouts()
+%   minYawThresh - minimum yaw velocity to define start and end of bout
+%   turnDur - 2 element vector [minTurnDuration maxTurnDuration] to
+%           specify the min and max duration of the turning bout for it to
+%           be included
 %   moveNotMove - pData output struct
 %   rightTurn - boolean for whether to extract right turns (false = left)
 %
@@ -31,6 +34,7 @@
 %
 % UPDATED:
 %   7/17/23- HHY
+%   8/23/23 - HHY - update comments
 %
 function [yawVelPeakTimes, boutStartTimes, boutEndTimes, ...
     yawVelPeakInd, boutStartInd, boutEndInd] = ...
