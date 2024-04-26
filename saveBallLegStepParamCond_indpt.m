@@ -1,23 +1,30 @@
 % saveBallLegStepParamCond_indpt.m
 %
 % Function that saves legStep parameters for all steps that meet the user 
-%  specified conditions on bodytraj
+%  specified conditions on FicTrac
 % Treats all steps as independent, as long as FictracSmo condition(s) are
 %  met, unlike saveBallLegStepParamCond_bouts.m
 % Steps are included if at least for half their duration, the FictracSmo 
 %  condition(s) are met. Step is both swing and stance
+% If L/R asymmetric conditions are included, pools left and right (i.e.
+%  angVel > 50 pools left and right turns). If there are no L/R asymmetric
+%  conditions and flipLegsLR is true, swaps left/right leg assignments and
+%  inverts L/R asymmetric step parameters. Equivalent to taking the
+%  mirror-image for that fly.
 % User selects one or more pData files through GUI
 %
 % Adaptation of saveLegStepParamCond_indpt.m from free walking analysis
 % 
 % INPUTS:
 %   cond - struct of conditions, if multiple conditions, treats it as AND
-%       whichParam - cell array (even if 1 element) on which bodytraj field
+%       whichParam - cell array (even if 1 element) on which FicTrac field
 %           to condition on, one for each condition
 %       cond - cell array of strings to condition on, for eval(); same size
 %           as whichParam
 %   postStimExclDur - additional time, in sec, after stimulation (opto or 
 %       iInj to exclude turning bouts from overlapping with
+%   flipLegsLR - boolean for whether to flip legs left right. Only works
+%       when cond doesn't include L/R asymmetric parameters
 %   pDataPath - full path to pData directory
 %   saveFilePath - directory in which to save output file
 %   saveFileName - name of output file, without .mat part
@@ -42,9 +49,10 @@
 % UPDATED:
 %   7/5/23 - HHY
 %   8/1/23 - HHY - didn't actually remove stimulation periods, fix
+%   4/25/24 - HHY - add flipLegsLR option
 %
 function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
-    pDataPath, saveFilePath, saveFileName)
+    flipLegsLR, pDataPath, saveFilePath, saveFileName)
 
     % names of all step parameters to save
     stepParamNames = {'stepLengths', 'stepXLengths', 'stepWhichLeg', ...
@@ -52,7 +60,7 @@ function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
         'stepVelX', 'stepVelY', 'stepAEPX', 'stepAEPY', 'stepPEPX', ...
         'stepPEPY', 'stepFtFwd', 'stepFtLat', 'stepFtYaw'};
     % all the step parameters where values need to be * -1 for left turns
-    flipStepParams = {'stepVelY', 'stepAEPY', 'stepPEPY', 'stepBodyLat',...
+    flipStepParams = {'stepVelY', 'stepAEPY', 'stepPEPY', 'stepFtLat',...
         'stepFtYaw', 'stepDirections'};
     % fictracSmo parameters that are L/R asymmetric contain one of the
     %  following
@@ -420,20 +428,95 @@ function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
         
                 % save legStep parameters for this trial
                 for j = 1:length(stepParamNames)
-                    thisLegStep = legSteps.(stepParamNames{j});
-                    thisLegStepVals = thisLegStep(inclStepInd,:);
-                    selLegSteps.(stepParamNames{j}) = ...
-                        [selLegSteps.(stepParamNames{j}); thisLegStepVals];
-        
-                    thisStanceStep = stanceStepParams.(stepParamNames{j});
-                    thisStanceVals = thisStanceStep(inclStepInd,:);
-                    selStanceParams.(stepParamNames{j}) = ...
-                        [selStanceParams.(stepParamNames{j}); thisStanceVals];
-        
-                    thisSwingStep = swingStepParams.(stepParamNames{j});
-                    thisSwingVals = thisSwingStep(inclStepInd,:);
-                    selSwingParams.(stepParamNames{j}) = ...
-                        [selSwingParams.(stepParamNames{j}); thisSwingVals];
+                    % if flipping left and right legs
+                    if (flipLegsLR)
+                        % for stepWhichLeg, swap indices of left and right
+                        %  legs
+                        if (strcmpi(stepParamNames{j}, 'stepWhichLeg'))
+                            thisLegStep = legSteps.(stepParamNames{j});
+                            thisLegStepVals = thisLegStep(inclStepInd,:);
+                            % swap left and right legs
+                            for k = 1:length(thisLegStepVals)
+                                thisLegStepVals(k) = swapLeftRightLegs(...
+                                    thisLegStepVals(k), matchedLegInd);
+                            end
+                            % add to running paramVals
+                            selLegSteps.(stepParamNames{j}) = ...
+                                [selLegSteps.(stepParamNames{j}); thisLegStepVals];
+                
+                            thisStanceStep = stanceStepParams.(stepParamNames{j});
+                            thisStanceVals = thisStanceStep(inclStepInd,:);
+                            % swap left and right legs
+                            for k = 1:length(thisStanceVals)
+                                thisStanceVals(k) = swapLeftRightLegs(...
+                                    thisStanceVals(k), matchedLegInd);
+                            end
+                            selStanceParams.(stepParamNames{j}) = ...
+                                [selStanceParams.(stepParamNames{j}); thisStanceVals];
+                
+                            thisSwingStep = swingStepParams.(stepParamNames{j});
+                            thisSwingVals = thisSwingStep(inclStepInd,:);
+                            % swap left and right legs
+                            for k = 1:length(thisSwingVals)
+                                thisSwingVals(k) = swapLeftRightLegs(...
+                                    thisSwingVals(k), matchedLegInd);
+                            end
+                            selSwingParams.(stepParamNames{j}) = ...
+                                [selSwingParams.(stepParamNames{j}); thisSwingVals];
+                        % if this is a parameter where the value needs to
+                        %  be inverted
+                        elseif(contains(stepParamNames{j}, flipStepParams))
+                            thisLegStep = legSteps.(stepParamNames{j});
+                            thisLegStepVals = thisLegStep(inclStepInd,:) * -1;
+                            selLegSteps.(stepParamNames{j}) = ...
+                                [selLegSteps.(stepParamNames{j}); thisLegStepVals];
+                
+                            thisStanceStep = stanceStepParams.(stepParamNames{j});
+                            thisStanceVals = thisStanceStep(inclStepInd,:) * -1;
+                            selStanceParams.(stepParamNames{j}) = ...
+                                [selStanceParams.(stepParamNames{j}); thisStanceVals];
+                
+                            thisSwingStep = swingStepParams.(stepParamNames{j});
+                            thisSwingVals = thisSwingStep(inclStepInd,:) * -1;
+                            selSwingParams.(stepParamNames{j}) = ...
+                                [selSwingParams.(stepParamNames{j}); thisSwingVals];
+                        % no inversion of this parameter    
+                        else
+                            thisLegStep = legSteps.(stepParamNames{j});
+                            thisLegStepVals = thisLegStep(inclStepInd,:);
+                            selLegSteps.(stepParamNames{j}) = ...
+                                [selLegSteps.(stepParamNames{j}); thisLegStepVals];
+                
+                            thisStanceStep = stanceStepParams.(stepParamNames{j});
+                            thisStanceVals = thisStanceStep(inclStepInd,:);
+                            selStanceParams.(stepParamNames{j}) = ...
+                                [selStanceParams.(stepParamNames{j}); thisStanceVals];
+                
+                            thisSwingStep = swingStepParams.(stepParamNames{j});
+                            thisSwingVals = thisSwingStep(inclStepInd,:);
+                            selSwingParams.(stepParamNames{j}) = ...
+                                [selSwingParams.(stepParamNames{j}); thisSwingVals];
+                        end
+
+                    % not flipping legs left-right  
+                    % no need to flip leg indices in stepWhichLeg or to
+                    %  invert values
+                    else
+                        thisLegStep = legSteps.(stepParamNames{j});
+                        thisLegStepVals = thisLegStep(inclStepInd,:);
+                        selLegSteps.(stepParamNames{j}) = ...
+                            [selLegSteps.(stepParamNames{j}); thisLegStepVals];
+            
+                        thisStanceStep = stanceStepParams.(stepParamNames{j});
+                        thisStanceVals = thisStanceStep(inclStepInd,:);
+                        selStanceParams.(stepParamNames{j}) = ...
+                            [selStanceParams.(stepParamNames{j}); thisStanceVals];
+            
+                        thisSwingStep = swingStepParams.(stepParamNames{j});
+                        thisSwingVals = thisSwingStep(inclStepInd,:);
+                        selSwingParams.(stepParamNames{j}) = ...
+                            [selSwingParams.(stepParamNames{j}); thisSwingVals];
+                    end
                 end
         
                 % end index for steps for this trial
@@ -459,5 +542,6 @@ function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
     fullSavePath = [saveFilePath filesep saveFileName '.mat'];
 
     save(fullSavePath, 'selLegSteps', 'selStanceParams',...
-        'selSwingParams', 'pDataFiles', 'cond', 'legIDs', '-v7.3');
+        'selSwingParams', 'pDataFiles', 'cond', 'legIDs', ...
+        'postStimExclDur', 'flipLegsLR', '-v7.3');
 end

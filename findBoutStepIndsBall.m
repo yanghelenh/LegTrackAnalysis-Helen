@@ -67,7 +67,7 @@ function [boutStepInd, boutPkSwingStance, rmInd] = findBoutStepIndsBall(legSteps
         end
     end
 
-    % get closest leg index for starts
+    % get closest leg index for ends
     for i = 1:length(boutEndTimes)
         thisEndInd = find(legT <= boutEndTimes(i), 1, 'last');
         if (~isempty(thisEndInd))
