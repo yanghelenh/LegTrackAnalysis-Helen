@@ -25,6 +25,8 @@
 %       iInj to exclude turning bouts from overlapping with
 %   flipLegsLR - boolean for whether to flip legs left right. Only works
 %       when cond doesn't include L/R asymmetric parameters
+%   pDataFNames - cell array of pData file names or [] if select through
+%       GUI
 %   pDataPath - full path to pData directory
 %   saveFilePath - directory in which to save output file
 %   saveFileName - name of output file, without .mat part
@@ -50,9 +52,11 @@
 %   7/5/23 - HHY
 %   8/1/23 - HHY - didn't actually remove stimulation periods, fix
 %   4/25/24 - HHY - add flipLegsLR option
+%   5/2/24 - HHY - add pDataFNames input, also, save file name is name of
+%       first pData fly name + saveFileName as suffix
 %
 function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
-    flipLegsLR, pDataPath, saveFilePath, saveFileName)
+    flipLegsLR, pDataFNames, pDataPath, saveFilePath, saveFileName)
 
     % names of all step parameters to save
     stepParamNames = {'stepLengths', 'stepXLengths', 'stepWhichLeg', ...
@@ -67,8 +71,12 @@ function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
     lrAsymBTParams = {'yawAngVel', 'slideVel'};
 
     % prompt user to select pData files
-    [pDataFNames, pDataDirPath] = uigetfile('*.mat', ...
-        'Select pData files', pDataPath, 'MultiSelect', 'on');
+    if isempty(pDataFNames)
+        [pDataFNames, pDataDirPath] = uigetfile('*.mat', ...
+            'Select pData files', pDataPath, 'MultiSelect', 'on');
+    else
+        pDataDirPath = pDataPath;
+    end
     
     % if only 1 pData file selected, not cell array; make sure loop still
     %  works 
@@ -102,6 +110,11 @@ function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
         end
 
         pDataFullPath = [pDataDirPath filesep pDataName];
+
+        % save fly name as first pDataName's date, fly, cell (19 characters)
+        if (i == 1)
+            flyName = pDataName(1:19);
+        end
 
 
         % get variables saved in pData file
@@ -539,7 +552,7 @@ function saveBallLegStepParamCond_indpt(cond, postStimExclDur, ...
     legIDs = legSteps.legIDs;
 
     % save output file
-    fullSavePath = [saveFilePath filesep saveFileName '.mat'];
+    fullSavePath = [saveFilePath filesep flyName '_' saveFileName '.mat'];
 
     save(fullSavePath, 'selLegSteps', 'selStanceParams',...
         'selSwingParams', 'pDataFiles', 'cond', 'legIDs', ...
